@@ -23,19 +23,14 @@ RUN bash -c 'set -ex \
     && : "project user & workdir" \
     && useradd -ms /bin/bash django --uid 1000'
 
-ADD requirements*.txt tox.ini README.md /code/
-ADD src /code/src/
-ADD lib /code/lib/
-ADD private /code/private/
-ADD sys                             /code/sys
-ADD local/django-deploy-common/     /code/local/django-deploy-common/
+ADD --chown=django:django requirements*.txt tox.ini README.md /code/
+ADD --chown=django:django src /code/src/
+ADD --chown=django:django lib /code/lib/
+ADD --chown=django:django private /code/private/
 
-RUN bash -c 'set -ex \
-    && chown django:django -R /code \
-    && cd /code && mkdir init\
-    && cp -frnv /code/local/django-deploy-common/sys/* sys \
-    && cp -frnv sys/* init \
-    && ln -sf $(pwd)/init/init.sh /init.sh \
+RUN bash -exc ': \
+    && find /code -not -user django \
+    | while read f;do chown django:django "$f";done \
     && gosu django:django bash -c "python${PY_VER} -m venv venv \
     && venv/bin/pip install -U --no-cache-dir setuptools wheel \
     && venv/bin/pip install -U --no-cache-dir -r ./requirements.txt \
@@ -44,6 +39,16 @@ RUN bash -c 'set -ex \
       -r ./requirements-dev.txt;\
     fi \
     && mkdir -p public/static public/media"'
+
+ADD sys                             /code/sys
+ADD local/django-deploy-common/     /code/local/django-deploy-common/
+RUN bash -exc ': \
+    && cd /code && mkdir init\
+    && find /code -not -user django \
+    | while read f;do chown django:django "$f";done \
+    && cp -frnv /code/local/django-deploy-common/sys/* sys \
+    && cp -frnv sys/* init \
+    && ln -sf $(pwd)/init/init.sh /init.sh'
 
 # image will drop privileges itself using gosu
 CMD chmod 0644 /etc/cron.d/django
