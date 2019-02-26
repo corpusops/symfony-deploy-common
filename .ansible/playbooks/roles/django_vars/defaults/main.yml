@@ -17,6 +17,8 @@ cops_django_alternate_hostnames: [".{{cops_django_tld_domain}}"]
 cops_django_secret_key: "SuperSecret"
 cops_django_gateway: "{{ ansible_default_ipv4.address}}"
 cops_django_composename: "{{cops_django_name}}"
+cops_django_db_host: "db"
+cops_django_db_port: "5432"
 cops_django_db_user: "secretJFCxwPHz99R9jIi"
 cops_django_db_password: "secret4gzQNe3c8851VOJ"
 cops_django_db_name: "{{cops_django_name}}"
@@ -58,6 +60,7 @@ cops_django_email_host_port: 1025
 cops_django_email_use_tls: 'no'
 cops_django_http_protect_user: "root"
 cops_django_http_protect_password: "rootroot"
+cops_django_redis_url: "redis://redis:6379/1"
 cops_django_hosts_whitelist: "{{(
     [cops_django_hostname, '0.0.0.0', '.{0}'.format(cops_django_hostname)]+
     cops_django_alternate_hostnames
@@ -71,6 +74,8 @@ cops_django_docker_env_defaults: |-
   # This need to be changed in production
   SECRET_KEY={{ cops_django_secret_key }}
   # db
+  POSTGRES_HOST={{ cops_django_db_host }}
+  POSTGRES_PORT={{ cops_django_db_port }}
   POSTGRES_USER={{ cops_django_db_user }}
   POSTGRES_DB={{ cops_django_db_name }}
   POSTGRES_PASSWORD={{cops_django_db_password }}
@@ -98,6 +103,7 @@ cops_django_docker_env_defaults: |-
   DJANGO__EMAIL_HOST_PASSWORD={{cops_django_email_host_password}}
   MAILCATCHER_USER={{cops_django_mailcatcher_user}}
   MAILCATCHER_PASSWORD={{cops_django_mailcatcher_password}}
+  REDIS_URL={{cops_django_redis_url}}
 # free form for params inside dockerenv
 cops_django_dotenv: |-
   APP_TYPE=django
