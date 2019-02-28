@@ -131,3 +131,22 @@ cops_django_code_rsync_opts: [
     "--exclude", ".tox",
     "--exclude", ".env",
     "--exclude", "docker.env"]
+cops_django_backup_postgresql: "{{'5432' == '{0}'.format(cops_django_db_port)}}"
+cops_django_backup_paths_to_backup:
+- "{{cops_django_dir}}"
+cops_django_backup_docker_volumes: [mediafiles]
+cops_django_backup_docker_volumes_: |-
+  {% set res = [] %}
+  {% for i in cops_django_backup_docker_volumes %}
+  {% set  _ = res.append('_'.join([cops_django_composename, i])) %}
+  {% endfor %}
+  {{ res | to_json }}
+cops_django_backup_pgdump_urls:
+- name: "{{cops_django_db_name}}"
+  url: "postgres://{{
+      cops_django_db_user}}:{{cops_django_db_password}}@{{
+        cops_django_db_host}}:{{cops_django_db_port}}/{{
+          cops_django_db_name}}"
+  docker_dir: "{{cops_django_dir}}"
+  docker_service: backup
+  docker_compose: "{{cops_django_dc}}"
