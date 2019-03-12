@@ -1,10 +1,10 @@
 ---
 # APP
-- hosts: "{{django_servers|default('all')}}"
+- hosts: "{{symfony_servers|default('all')}}"
   roles: [corpusops.roles/ansible_plugins]
   tasks:
-  - when: ["cops_django_lifecycle_app|default(true)"]
-    tags: ["cops_django_lifecycle_app"]
+  - when: ["cops_symfony_lifecycle_app|default(true)"]
+    tags: ["cops_symfony_lifecycle_app"]
     block:
-    - include_role: {name: django_vars, allow_duplicates: false}
-    - include_role: {name: django,      allow_duplicates: false}
+    - include_role: {name: symfony_vars, allow_duplicates: false}
+    - include_role: {name: symfony,      allow_duplicates: false}

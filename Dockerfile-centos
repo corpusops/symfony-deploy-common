@@ -1,0 +1,96 @@
+ARG BASE=corpusops/centos-bare:7
+FROM $BASE
+ARG TZ=Europe/Paris
+ARG PHP_VER=7.2
+ARG PHP_VER_NO_DOT=72
+ENV BUILD_DEV=$BUILD_DEV
+ENV PHP_VER=$PHP_VER
+ENV PHP_VER_NO_DOT=$PHP_VER_NO_DOT
+# ENV DEBIAN_FRONTEND=noninteractive
+ARG BUILD_DEV=y
+
+# See https://github.com/nodejs/docker-node/issues/380
+ARG GPG_KEYS=B42F6819007F00F88E364FD4036A9C25BF357DD4
+ARG GPG_KEYS_SERVERS="hkp://p80.pool.sks-keyservers.net:80 hkp://ipv4.pool.sks-keyservers.net hkp://pgp.mit.edu:80"
+
+WORKDIR /code
+# ADD apt.txt /code/apt.txt
+ADD yum.txt /code/yum.txt
+
+USER root
+
+# setup project timezone, dependencies, user & workdir, gosu
+RUN bash -c 'set -ex \
+    && : "set correct timezone" \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    '
+RUN bash -c 'set -ex \
+    && : "install packages" \
+    && yum -y update \
+    && yum -y install epel-release \
+    && yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
+    && yum install -y yum-utils yum-priorities \
+    && yum -y update \
+    && yum-config-manager --enable remi-php${PHP_VER_NO_DOT} \
+    && yum -y install $(grep -vE "^\s*#" /code/yum.txt  | tr "\n" " ") \
+    && yum clean all \
+    && php --version \
+    '
+RUN bash -c 'set -ex \
+    && : "project user & workdir" \
+    && useradd -ms /bin/bash symfony --uid 1000 \
+      --home-dir /home/symfony \
+    && chmod 2755 /home/symfony/ \
+    && mkdir /home/symfony/.ssh \
+    && chmod 0700 /home/symfony/.ssh \
+    && chown -R symfony:symfony /home/symfony/ \
+    '
+
+ADD   --chown=symfony:symfony app          /code/app
+ADD                           sys          /code/sys
+#ADD          local/symfony-deploy-common/  /code/local/symfony-deploy-common/
+
+# We make an intermediary init folder to allow to have the
+# entrypoint mounted as a volume in dev
+#RUN bash -c 'set -ex \
+#    && cd /code && mkdir init \
+#    && find /code -type f -not -user www-data \
+#    | while read f;do chown www-data:www-data "$f";done \
+#    && cp -frnv /code/local/symfony-deploy-common/public_html/* public_html \
+#    && cp -frnv /code/local/symfony-deploy-common/sys/* sys \
+#    && cp -frnv sys/* init \
+#    && ln -sf $(pwd)/init/init.sh /init.sh \
+#    && gosu www-data:www-data bash -c "\
+#    : add extra deployment here"'
+
+RUN bash -c 'set -ex \
+    && : "connect init.sh" \
+    && chown symfony:symfony -R /code \
+    && cd /code/ \
+    && mkdir /code/init \
+    && ln -sf $(pwd)/init/init.sh /init.sh \
+    '
+RUN bash -c 'set -ex \
+    && : "install composer" \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
+    && /usr/local/bin/composer --version  \
+    '
+
+# COPY sys/crontab /etc/cron.d/symfony
+# RUN chmod 0644 /etc/cron.d/symfony
+
+ADD sys/init.sh /code/init.sh
+WORKDIR /code/app
+
+ADD keys/* /home/symfony/.ssh/
+
+ADD sys/sbin /code/sbin
+RUN bash -c 'set -ex \
+    && : "run composerinstall.sh" \
+    && cd /code/sbin \
+    && ./composerinstall.sh \
+    '
+
+# image will drop privileges itself using gosu
+ENTRYPOINT []
+CMD "/init.sh"

@@ -25,11 +25,6 @@
     mode: "0640"
     trim_blocks: false
 - template:
-    src: "local.py"
-    dest: "{{cops_symfony_dir}}/local.py"
-    mode: "0644"
-    trim_blocks: false
-- template:
     src: "docker.env"
     dest: "{{cops_symfony_dir}}/docker.env"
     mode: "0640"

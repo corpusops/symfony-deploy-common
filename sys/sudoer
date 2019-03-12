@@ -1,1 +1,1 @@
-django ALL=(ALL) NOPASSWD:ALL
+symfony ALL=(ALL) NOPASSWD:ALL

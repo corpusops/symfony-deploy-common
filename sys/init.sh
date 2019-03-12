@@ -18,63 +18,46 @@ for VENV in ./venv ../venv;do
 done
 
 PROJECT_DIR=$TOPDIR
-if [ -e src ];then
-    PROJECT_DIR=$TOPDIR/src
+if [ -e app ];then
+    PROJECT_DIR=$TOPDIR/app
 fi
+export PROJECT_DIR
 # activate shell debug if SDEBUG is set
 if [[ -n $SDEBUG ]];then set -x;fi
 
-DEFAULT_IMAGE_MODE=gunicorn
-if [[ -n $NO_GUNICORN ]];then
-    # retro compat with old setups
-    DEFAULT_IMAGE_MODE=fg
-fi
+DEFAULT_IMAGE_MODE=fg
+
 export IMAGE_MODE=${IMAGE_MODE:-${DEFAULT_IMAGE_MODE}}
-IMAGE_MODES="(cron|gunicorn|fg|celery_worker|celery_beat)"
+IMAGE_MODES="(cron|nginx|fg|phpfpm|supervisor)"
 NO_START=${NO_START-}
-DJANGO_CONF_PREFIX="${DJANGO_CONF_PREFIX:-"DJANGO__"}"
 DEFAULT_NO_MIGRATE=
+DEFAULT_NO_COMPOSER=
 DEFAULT_NO_STARTUP_LOGS=
 DEFAULT_NO_COLLECT_STATIC=
+# FIXME: what is this???
 if [[ -n $@ ]];then
     DEFAULT_NO_STARTUP_LOGS=1
-    DEFAULT_NO_MIGRATE=1
-    DEFAULT_NO_COLLECT_STATIC=1
 fi
 NO_STARTUP_LOGS=${NO_MIGRATE-$DEFAULT_NO_STARTUP_LOGS}
 NO_MIGRATE=${NO_MIGRATE-$DEFAULT_NO_MIGRATE}
-NO_GUNICORN=${NO_GUNICORN-}
+NO_COMPOSER=${NO_COMPOSER-$DEFAULT_NO_COMPOSER}
 NO_COLLECT_STATIC=${NO_COLLECT_STATIC-$DEFAULT_NO_COLLECT_STATIC}
 NO_IMAGE_SETUP="${NO_IMAGE_SETUP:-"1"}"
 FORCE_IMAGE_SETUP="${FORCE_IMAGE_SETUP:-"1"}"
-DO_IMAGE_SETUP_MODES="${DO_IMAGE_SETUP_MODES:-"fg|gunicorn"}"
+IMAGE_SETUP_MODES="${IMAGE_SETUP_MODES:-"fg|phpfpm"}"
 
 FINDPERMS_PERMS_DIRS_CANDIDATES="${FINDPERMS_PERMS_DIRS_CANDIDATES:-"public private"}"
 FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"public private"}"
-export APP_TYPE="${APP_TYPE:-docker}"
+export APP_TYPE="${APP_TYPE:-symfony}"
 export APP_USER="${APP_USER:-$APP_TYPE}"
 export APP_GROUP="$APP_USER"
+# directories created and set on user ownership at startup
+# FIXME: public/media is not right for symfony
 export USER_DIRS=". public/media"
 SHELL_USER=${SHELL_USER:-${APP_USER}}
 
-# django variables
-export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
-export DJANGO_WSGI=${DJANGO_WSGI:-project.wsgi}
-export DJANGO_LISTEN=${DJANGO_LISTEN:-"0.0.0.0:8000"}
-
-# Celery variables
-export CELERY_LOGLEVEL=${CELERY_LOGLEVEL:-info}
-export DJANGO_CELERY=${DJANGO_CELERY:-project.celery:app}
-export DJANGO_CELERY_BROKER="${DJANGO_CELERY_BROKER:-amqp}"
-export DJANGO_CELERY_HOST="${DJANGO_CELERY_HOST:-celery-broker}"
-export DJANGO_CELERY_VHOST="${DJANGO_CELERY_VHOST:-}"
-if ( echo "$DJANGO_CELERY_BROKER" | egrep -q "rabbitmq|amqp" );then
-    burl="amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@$DJANGO_CELERY_HOST/$DJANGO_CELERY_VHOST/"
-elif [[ "$DJANGO_CELERY_BROKER" = "redis" ]];then
-    burl="redis://$DJANGO_CELERY_HOST/"
-fi
-export DJANGO__CELERY_BROKER_URL="${DJANGO__CELERY_BROKER_URL:-$burl}"
-
+# Symfony variables
+export SYMFONY_LISTEN=${SYMFONY_LISTEN:-"0.0.0.0:8000"}
 
 log() {
     echo "$@" >&2;
@@ -82,16 +65,6 @@ log() {
 
 vv() {
     log "$@";"$@";
-}
-
-# Regenerate egg-info & be sure to have it in site-packages
-regen_egg_info() {
-    local f="$1"
-    if [ -e "$f" ];then
-        local e="$(dirname "$f")"
-        echo "Reinstalling egg-info in: $e" >&2
-        ( cd "$e" && gosu $APP_USER python setup.py egg_info >/dev/null 2>&1; )
-    fi
 }
 
 #  shell: Run interactive shell inside container
@@ -147,26 +120,14 @@ configure() {
         chown $APP_USER:$APP_GROUP "$i"
     done
     if (find /etc/sudoers* -type f >/dev/null 2>&1);then chown -Rf root:root /etc/sudoers*;fi
-    # regenerate any setup.py found as it can be an egg mounted from a docker volume
-    # without having a chance to be built
-    while read f;do regen_egg_info "$f";done < <( \
-        find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/lib" \
-        -maxdepth 2 -mindepth 0 -name setup.py -type f 2>/dev/null; )
+
     # copy only if not existing template configs from common deploy project
     # and only if we have that common deploy project inside the image
     if [ ! -e etc ];then mkdir etc;fi
     for i in local/*deploy-common/etc local/*deploy-common/sys/etc sys/etc;do
         if [ -d $i ];then cp -rfnv $i/* etc >&2;fi
     done
-    # install wtih envsubst any template file to / (eg: logrotate & cron file)
-    for i in $(find etc -name "*.envsubst" -type f 2>/dev/null);do
-        di="/$(dirname $i)" \
-            && if [ ! -e "$di" ];then mkdir -pv "$di" >&2;fi \
-            && cp "$i" "/$i" \
-            && CONF_PREFIX="$DJANGO_CONF_PREFIX" confenvsubst.sh "/$i" \
-            && rm -f "/$i"
-    done
-    # install wtih frep any template file to / (eg: logrotate & cron file)
+    # install with frep any template file to / (eg: logrotate & cron file)
     for i in $(find etc -name "*.frep" -type f 2>/dev/null);do
         d="$(dirname "$i")/$(basename "$i" .frep)" \
             && di="/$(dirname $d)" \
@@ -180,7 +141,7 @@ configure() {
 #               like database migrations, etc
 services_setup() {
     if [[ -z $NO_IMAGE_SETUP ]];then
-        if [[ -n $FORCE_IMAGE_SETUP ]] || ( echo $IMAGE_MODE | egrep -q "$DO_IMAGE_SETUP_MODES" ) ;then
+        if [[ -n $FORCE_IMAGE_SETUP ]] || ( echo $IMAGE_MODE | egrep -q "$IMAGE_SETUP_MODES" ) ;then
             : "continue services_setup"
         else
             log "No image setup"
@@ -194,16 +155,28 @@ services_setup() {
     fi
     # alpine linux has /etc/crontabs/ and ubuntu based vixie has /etc/cron.d/
     if [ -e /etc/cron.d ] && [ -e /etc/crontabs ];then cp -fv /etc/crontabs/* /etc/cron.d >&2;fi
+    
+    # composer install
+    if [[ -z ${NO_COMPOSER} ]];then
+        if [ -e $PROJECT_DIR/composerinstall.sh ]; then
+            $PROJECT_DIR/composerinstall.sh
+        fi
+    fi
+    # FIXME: symfony migrations?
     # Run any migration
     if [[ -z ${NO_MIGRATE} ]];then
         ( cd $PROJECT_DIR \
-            && gosu $APP_USER ./manage.py migrate --noinput )
+            && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:status \
+            && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:migrate )
     fi
-    # Collect statics
+    
+    # FIXME Collect statics
     if [[ -z ${NO_COLLECT_STATIC} ]];then
         ( cd $PROJECT_DIR \
-            && gosu $APP_USER ./manage.py collectstatic --noinput )
+           && gosu $APP_USER php bin/console --no-interaction assets:install)
     fi
+
+    cd $PROJECT_DIR && gosu $APP_USER php bin/console --no-interaction about
 }
 
 fixperms() {
@@ -232,9 +205,9 @@ fixperms() {
 usage() {
     drun="docker run --rm -it <img>"
     echo "EX:
-$drun [-e NO_COLLECT_STATIC=1] [-e NO_MIGRATE=1] [ -e FORCE_IMAGE_SETUP] [-e IMAGE_MODE=\$mode]
+$drun [-e NO_COLLECT_STATIC=1] [-e NO_MIGRATE=1] [-e NO_COMPOSER=1] [ -e FORCE_IMAGE_SETUP] [-e IMAGE_MODE=\$mode]
     docker run <img>
-        run either django, cron, or celery beat|worker daemon
+        run either fg, nginx, cron, supervisor or phpfpm daemon
         (IMAGE_MODE: $IMAGE_MODES)
 
 $drun \$args: run commands with the context ignited inside the container
@@ -244,8 +217,8 @@ $drun [ -e FORCE_IMAGE_SETUP=1] [ -e NO_IMAGE_SETUP=1] [-e SHELL_USER=\$ANOTHERU
 (default user: $SHELL_USER)
 (default mode: $IMAGE_MODE)
 
-If FORCE_IMAGE_SETUP is set: run migrate/collect static
-If NO_IMAGE_SETUP is set: migrate/collect static is skipped, no matter what
+If FORCE_IMAGE_SETUP is set: run migration/static collection
+If NO_IMAGE_SETUP is set: migration/static collection is skipped, no matter what
 If NO_START is set: start an infinite loop doing nothing (for dummy containers in dev)
 "
   exit 0
@@ -253,7 +226,8 @@ If NO_START is set: start an infinite loop doing nothing (for dummy containers i
 
 do_fg() {
     ( cd $PROJECT_DIR \
-        && exec gosu $APP_USER ./manage.py runserver $DJANGO_LISTEN )
+        && exec gosu $APP_USER php bin/console --no-interaction server:run $SYMFONY_LISTEN )
+        #  && exec gosu $APP_USER tail -f /dev/null )
 }
 
 if ( echo $1 | egrep -q -- "--help|-h|help" );then
@@ -274,6 +248,7 @@ pre() {
 
 # only display startup logs when we start in daemon mode
 # and try to hide most when starting an (eventually interactive) shell.
+# if [[ -n $NO_STARTUP_LOGS ]];then pre 2>/dev/null;else pre;fi
 if [[ -n $NO_STARTUP_LOGS ]];then pre 2>/dev/null;else pre;fi
 
 if [[ -z "$@" ]]; then
