@@ -82,7 +82,14 @@ RUN bash -c 'set -ex \
 ADD sys/init.sh /code/init.sh
 WORKDIR /code/app
 
+# Potential ssh keys for application user
 ADD keys/* /home/symfony/.ssh/
+RUN bash -c 'set -ex \
+    && : "alter rights and ownerships of ssh keys" \
+    && chmod 0600 /home/symfony/.ssh/* \
+    && chmod 0644 /home/symfony/.ssh/*.pub \
+    && chown -R symfony:symfony /home/symfony/.ssh/* \
+    '
 
 ADD sys/sbin /code/sbin
 RUN bash -c 'set -ex \
