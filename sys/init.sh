@@ -5,7 +5,7 @@ cd "$SCRIPTSDIR/.."
 TOPDIR=$(pwd)
 
 # now be in stop-on-error mode
-set -e
+set -ex
 # load locales & default env
 # load this first as it resets $PATH
 for i in /etc/environment /etc/default/locale;do
@@ -20,6 +20,9 @@ done
 PROJECT_DIR=$TOPDIR
 if [ -e app ];then
     PROJECT_DIR=$TOPDIR/app
+fi
+if [ -e /code/app ]; then
+    PROJECT_DIR=/code/app
 fi
 export PROJECT_DIR
 # activate shell debug if SDEBUG is set

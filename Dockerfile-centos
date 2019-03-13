@@ -46,9 +46,18 @@ RUN bash -c 'set -ex \
     && chown -R symfony:symfony /home/symfony/ \
     '
 
+RUN bash -c 'set -ex \
+    && cd /code \
+    && mkdir app \
+    && mkdir sbin \
+    && mkdir sys \
+    && mkdir -p local/symfony-deploy-common/ \
+    && chown -R symfony:symfony /code \
+    '
 ADD   --chown=symfony:symfony app          /code/app
+ADD                           sys/sbin     /code/sbin
 ADD                           sys          /code/sys
-#ADD          local/symfony-deploy-common/  /code/local/symfony-deploy-common/
+ADD          local/symfony-deploy-common/  /code/local/symfony-deploy-common/
 
 # We make an intermediary init folder to allow to have the
 # entrypoint mounted as a volume in dev
@@ -67,8 +76,7 @@ RUN bash -c 'set -ex \
     && : "connect init.sh" \
     && chown symfony:symfony -R /code \
     && cd /code/ \
-    && mkdir /code/init \
-    && ln -sf $(pwd)/init/init.sh /init.sh \
+    && ln -sf $(pwd)/sys/init.sh /init.sh \
     '
 RUN bash -c 'set -ex \
     && : "install composer" \
@@ -76,10 +84,6 @@ RUN bash -c 'set -ex \
     && /usr/local/bin/composer --version  \
     '
 
-# COPY sys/crontab /etc/cron.d/symfony
-# RUN chmod 0644 /etc/cron.d/symfony
-
-ADD sys/init.sh /code/init.sh
 WORKDIR /code/app
 
 # Potential ssh keys for application user
@@ -91,11 +95,18 @@ RUN bash -c 'set -ex \
     && chown -R symfony:symfony /home/symfony/.ssh/* \
     '
 
-ADD sys/sbin /code/sbin
+RUN bash -c 'set -ex \
+    && : "generate a default app.env from the app/.env.dist" \
+    && cp /code/app/.env.dist /code/app/.env \
+    && chown symfony:symfony /code/app/.env \
+    '
+
+# Note the --no-scripts for composer is to avoid the symfony cache clear
+# which requires a working database
 RUN bash -c 'set -ex \
     && : "run composerinstall.sh" \
     && cd /code/sbin \
-    && ./composerinstall.sh \
+    && ./composerinstall.sh --no-scripts \
     '
 
 # image will drop privileges itself using gosu
