@@ -66,6 +66,9 @@ export PHP_MAX_SPARE_WORKERS=${PHP_MAX_SPARE_WORKERS:-35}
 export PHP_MIN_SPARE_WORKERS=${PHP_MIN_SPARE_WORKERS:-5}
 export PHP_DISPLAY_ERROR=${PHP_DISPLAY_ERROR:-0}
 export COOKIE_DOMAIN=${COOKIE_DOMAIN:-5}
+export APP_ENV=${APP_ENV:-"prod"}
+export DATABASE_URL=${DATABASE_URL:-"no value"}
+export APP_SECRET=${APP_SECRET:-42424242424242424242424242}
 
 log() {
     echo "$@" >&2;
@@ -137,12 +140,17 @@ configure() {
     done
     # install with frep any template file to / (eg: logrotate & cron file)
     for i in $(find etc -name "*.frep" -type f 2>/dev/null);do
+        echo $i
         d="$(dirname "$i")/$(basename "$i" .frep)" \
             && di="/$(dirname $d)" \
             && if [ ! -e "$di" ];then mkdir -pv "$di" >&2;fi \
             && echo "Generating with frep $i:/$d" >&2 \
             && frep "$i:/$d" --overwrite
     done
+
+    # regenerate symfony app/.env file
+    frep "/code/app/.env.dist.frep://code/app/.env" --overwrite
+    cat /code/app/.env
 }
 
 #  services_setup: when image run in daemon mode: pre start setup
