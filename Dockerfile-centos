@@ -109,6 +109,11 @@ RUN bash -c 'set -ex \
     && ./composerinstall.sh --no-scripts \
     '
 
+RUN bash -c 'set -ex \
+    && : "remove default php-fpm pool" \
+    && rm -f /etc/php-fpm.d/www.conf \
+  '
+
 # image will drop privileges itself using gosu
 ENTRYPOINT []
 CMD "/init.sh"

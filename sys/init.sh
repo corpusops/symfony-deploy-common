@@ -28,7 +28,7 @@ export PROJECT_DIR
 # activate shell debug if SDEBUG is set
 if [[ -n $SDEBUG ]];then set -x;fi
 
-DEFAULT_IMAGE_MODE=fg
+DEFAULT_IMAGE_MODE=phpfpm
 
 export IMAGE_MODE=${IMAGE_MODE:-${DEFAULT_IMAGE_MODE}}
 IMAGE_MODES="(cron|nginx|fg|phpfpm|supervisor)"
@@ -61,6 +61,11 @@ SHELL_USER=${SHELL_USER:-${APP_USER}}
 
 # Symfony variables
 export SYMFONY_LISTEN=${SYMFONY_LISTEN:-"0.0.0.0:8000"}
+export PHP_MAX_WORKERS=${PHP_MAX_WORKERS:-50}
+export PHP_MAX_SPARE_WORKERS=${PHP_MAX_SPARE_WORKERS:-35}
+export PHP_MIN_SPARE_WORKERS=${PHP_MIN_SPARE_WORKERS:-5}
+export PHP_DISPLAY_ERROR=${PHP_DISPLAY_ERROR:-0}
+export COOKIE_DOMAIN=${COOKIE_DOMAIN:-5}
 
 log() {
     echo "$@" >&2;
@@ -230,7 +235,13 @@ If NO_START is set: start an infinite loop doing nothing (for dummy containers i
 do_fg() {
     ( cd $PROJECT_DIR \
         && exec gosu $APP_USER php bin/console --no-interaction server:run $SYMFONY_LISTEN )
-        #  && exec gosu $APP_USER tail -f /dev/null )
+}
+
+do_phpfpm() {
+    (
+        mkdir /run/php-fpm \
+        && php-fpm -F -R
+    )
 }
 
 if ( echo $1 | egrep -q -- "--help|-h|help" );then
@@ -263,12 +274,16 @@ if [[ -z "$@" ]]; then
     if [[ "$IMAGE_MODE" = "fg" ]]; then
         do_fg
     else
-        cfg="/etc/supervisor.d/$IMAGE_MODE"
-        if [ ! -e $cfg ];then
-            log "Missing: $cfg"
-            exit 1
+        if [[ "$IMAGE_MODE" = "phpfpm" ]]; then
+            do_phpfpm
+        else
+            cfg="/etc/supervisor.d/$IMAGE_MODE"
+            if [ ! -e $cfg ];then
+                log "Missing: $cfg"
+                exit 1
+            fi
+            SUPERVISORD_CONFIGS="/etc/supervisor.d/rsyslog $cfg" exec /bin/supervisord.sh
         fi
-        SUPERVISORD_CONFIGS="/etc/supervisor.d/rsyslog $cfg" exec /bin/supervisord.sh
     fi
 else
     if [[ "${1-}" = "shell" ]];then shift;fi
