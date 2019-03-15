@@ -48,6 +48,8 @@ RUN bash -c 'set -ex \
 
 RUN bash -c 'set -ex \
     && cd /code \
+    && mkdir public \
+    && mkdir private \
     && mkdir app \
     && mkdir sbin \
     && mkdir sys \
