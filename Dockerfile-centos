@@ -48,9 +48,9 @@ RUN bash -c 'set -ex \
 
 RUN bash -c 'set -ex \
     && cd /code \
-    && mkdir public \
     && mkdir private \
     && mkdir app \
+    && mkdir app/public \
     && mkdir sbin \
     && mkdir sys \
     && mkdir -p local/symfony-deploy-common/ \
