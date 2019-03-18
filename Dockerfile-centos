@@ -53,6 +53,7 @@ RUN bash -c 'set -ex \
     && mkdir app/public \
     && mkdir sbin \
     && mkdir sys \
+    && mkdir init \
     && mkdir -p local/symfony-deploy-common/ \
     && chown -R symfony:symfony /code \
     '
@@ -63,17 +64,11 @@ ADD          local/symfony-deploy-common/  /code/local/symfony-deploy-common/
 
 # We make an intermediary init folder to allow to have the
 # entrypoint mounted as a volume in dev
-#RUN bash -c 'set -ex \
-#    && cd /code && mkdir init \
-#    && find /code -type f -not -user www-data \
-#    | while read f;do chown www-data:www-data "$f";done \
-#    && cp -frnv /code/local/symfony-deploy-common/public_html/* public_html \
-#    && cp -frnv /code/local/symfony-deploy-common/sys/* sys \
-#    && cp -frnv sys/* init \
-#    && ln -sf $(pwd)/init/init.sh /init.sh \
-#    && gosu www-data:www-data bash -c "\
-#    : add extra deployment here"'
-
+# cp -frnv => keeps existing stuff, add new stuff, this allows for existing files in project
+# overriding the common stuff
+# common -> sys
+# sys -> init
+# ==> init contains files from both local sys and common, common cannot override content from local sys
 RUN bash -c 'set -ex \
     && : "connect init.sh" \
     && find /code -not -user symfony \
