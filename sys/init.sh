@@ -55,8 +55,7 @@ export APP_TYPE="${APP_TYPE:-symfony}"
 export APP_USER="${APP_USER:-$APP_TYPE}"
 export APP_GROUP="$APP_USER"
 # directories created and set on user ownership at startup
-# FIXME: public/media is not right for symfony
-export USER_DIRS=". public/media"
+export USER_DIRS=". public private"
 SHELL_USER=${SHELL_USER:-${APP_USER}}
 
 # Symfony variables
