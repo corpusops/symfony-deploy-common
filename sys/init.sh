@@ -246,7 +246,7 @@ do_fg() {
 
 do_phpfpm() {
     (
-        mkdir /run/php-fpm \
+        if [ ! -d /run/php-fpm ]; then mkdir /run/php-fpm; fi \
         && php-fpm -F -R
     )
 }
