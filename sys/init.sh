@@ -152,6 +152,7 @@ configure() {
 
     # regenerate symfony app/.env file
     frep "/code/app/.env.dist.frep://code/app/.env" --overwrite
+    chown symfony:symfony "/code/app/.env"
     cat /code/app/.env
 }
 
