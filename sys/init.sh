@@ -177,8 +177,8 @@ services_setup() {
     
     # composer install
     if [[ -z ${NO_COMPOSER} ]];then
-        if [ -e /code/sbin/composerinstall.sh ]; then
-            /code/sbin/composerinstall.sh
+        if [ -e /code/init/sbin/composerinstall.sh ]; then
+            /code/init/sbin/composerinstall.sh
         fi
     fi
     # FIXME: symfony migrations?

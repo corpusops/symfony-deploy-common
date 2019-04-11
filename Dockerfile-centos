@@ -108,9 +108,8 @@ RUN bash -c 'set -ex \
 # Note the --no-scripts for composer is to avoid the symfony cache clear
 # which requires a working database
 RUN bash -c 'set -ex \
-    && : "run composerinstall.sh" \
-    && cd /code/sbin \
-    && ./composerinstall.sh --no-scripts \
+    && : "run  composerinstall.sh" \
+    && /code/init/sbin/composerinstall.sh --no-scripts \
     '
 
 RUN bash -c 'set -ex \
