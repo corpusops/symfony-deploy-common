@@ -195,7 +195,7 @@ services_setup() {
            && gosu $APP_USER php bin/console --no-interaction assets:install)
     fi
 
-    cd $PROJECT_DIR && gosu $APP_USER php bin/console --no-interaction about
+    # cd $PROJECT_DIR && gosu $APP_USER php bin/console --no-interaction about
 }
 
 fixperms() {
