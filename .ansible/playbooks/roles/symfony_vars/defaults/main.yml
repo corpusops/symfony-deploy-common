@@ -17,6 +17,7 @@ cops_symfony_alternate_hostnames: [".{{cops_symfony_tld_domain}}"]
 cops_symfony_secret_key: "SuperSecret"
 cops_symfony_gateway: "{{ ansible_default_ipv4.address}}"
 cops_symfony_composename: "{{cops_symfony_name}}"
+cops_symfony_backuped_dbs: all
 cops_symfony_db_user: "secretJFCxdffffwPH9R9jIi"
 cops_symfony_db_password: "secrdet44ff4gzQNe3c885ttgJ"
 cops_symfony_db_name: "{{cops_symfony_name}}"
@@ -94,6 +95,7 @@ cops_symfony_docker_env_defaults: |-
   SYMFONY__EMAIL_HOST_PASSWORD={{cops_symfony_email_host_password}}
   MAILCATCHER_USER={{cops_symfony_mailcatcher_user}}
   MAILCATCHER_PASSWORD={{cops_symfony_mailcatcher_password}}
+  DBS_DBNAMES={{cops_symfony_backuped_dbs}}
 # free form for params inside dockerenv
 cops_symfony_dotenv: |-
   APP_TYPE=symfony

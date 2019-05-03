@@ -20,11 +20,6 @@
     set_remote_user: "no"
     #update_opts: '--recursive'
 - template:
-    src: "dbsmartbackup.yml"
-    dest: "{{cops_symfony_dir}}/local/backup/setup/reconfigure.yml"
-    mode: "0640"
-    trim_blocks: false
-- template:
     src: "docker.env"
     dest: "{{cops_symfony_dir}}/docker.env"
     mode: "0640"
