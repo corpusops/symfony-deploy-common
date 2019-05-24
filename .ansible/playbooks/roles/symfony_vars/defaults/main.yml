@@ -18,6 +18,8 @@ cops_symfony_secret_key: "SuperSecret"
 cops_symfony_gateway: "{{ ansible_default_ipv4.address}}"
 cops_symfony_composename: "{{cops_symfony_name}}"
 cops_symfony_backuped_dbs: all
+cops_symfony_db_host: "db"
+cops_symfony_db_port: "5432"
 cops_symfony_db_user: "secretJFCxdffffwPH9R9jIi"
 cops_symfony_db_password: "secrdet44ff4gzQNe3c885ttgJ"
 cops_symfony_db_name: "{{cops_symfony_name}}"
@@ -63,6 +65,9 @@ cops_symfony_hosts_whitelist: "{{(
   )|join('-|_')}}"
 cops_symfony_sentry_tags: ["env:{{cops_symfony_deploy_env}}"]
 cops_symfony_sentry_dsn: ''
+cops_symfony_php_max_workers: "10"
+cops_symfony_php_max_spare_workers: "5"
+cops_symfony_php_min_spare_workers: "3"
 cops_symfony_docker_env_freeform: |-
   {{ cops_symfony_docker_env_defaults}}
   {{ cops_symfony_docker_env_extra}}
@@ -71,9 +76,21 @@ cops_symfony_docker_env_defaults: |-
   SECRET_KEY={{ cops_symfony_secret_key }}
   # db
   POSTGRES_USER={{ cops_symfony_db_user }}
+  POSTGRES_PORT={{ cops_symfony_db_port }}
   POSTGRES_DB={{ cops_symfony_db_name }}
   POSTGRES_PASSWORD={{cops_symfony_db_password }}
   PGPASSWD={{cops_symfony_db_password }}
+  DATABASE_URL=pgsql://{{ cops_symfony_db_user }}:{{cops_symfony_db_password }}@{{ cops_symfony_db_host }}:{{ cops_symfony_db_port }}/{{ cops_symfony_db_name }}
+
+  PROJECT_PACKAGE={{ cops_symfony_name }}
+  PROJECT_DIR=/code/app
+  SYMFONY_NAME={{ cops_symfony_name }}
+  COOKIE_DOMAIN={{ cops_symfony_hostname }}
+  PHP_MAX_WORKERS={{ cops_symfony_php_max_workers }}
+  PHP_MAX_SPARE_WORKERS={{ cops_symfony_php_max_spare_workers }}
+  PHP_MIN_SPARE_WORKERS={{ cops_symfony_php_min_spare_workers }}
+  APP_ENV={{ cops_symfony_deploy_env }}
+  APP_SECRET={{ cops_symfony_secret_key }}
   # cors
   SYMFONY__CORS_ORIGIN_WHITELIST={{cops_symfony_hosts_whitelist}}
   SYMFONY__ALLOWED_HOSTS={{cops_symfony_hosts_whitelist}}
@@ -83,23 +100,12 @@ cops_symfony_docker_env_defaults: |-
   SYMFONY__SENTRY_RELEASE={{cops_symfony_docker_tag}}
   SYMFONY__SENTRY_TAGS={{cops_symfony_sentry_tags|join(',')}}
   {% endif %}
-  {% if cops_symfony_devmode %}
-  SYMFONY__CORS_ORIGIN_ALLOW_ALL=y
-  SYMFONY__DEBUG=y
-  {% endif %}
-  SYMFONY__DEFAULT_FROM_EMAIL={{ cops_symfony_default_from_email }}
-  SYMFONY__SERVER_EMAIL={{ cops_symfony_server_email }}
-  SYMFONY__EMAIL_HOST={{cops_symfony_email_server}}
-  SYMFONY__EMAIL_PORT={{cops_symfony_email_host_port}}
-  SYMFONY__EMAIL_HOST_USER={{cops_symfony_email_host_user}}
-  SYMFONY__EMAIL_HOST_PASSWORD={{cops_symfony_email_host_password}}
   MAILCATCHER_USER={{cops_symfony_mailcatcher_user}}
   MAILCATCHER_PASSWORD={{cops_symfony_mailcatcher_password}}
   DBS_DBNAMES={{cops_symfony_backuped_dbs}}
 # free form for params inside dockerenv
 cops_symfony_dotenv: |-
   APP_TYPE=symfony
-  SYMFONY_SETTINGS_MODULE={{cops_symfony_settings_module}}
   SYMFONY_PHP_VER={{ cops_symfony_php_ver }}
   SYMFONY_NAME={{ cops_symfony_name }}
   COMPOSE_PROJECT_NAME={{cops_symfony_composename}}
@@ -120,4 +126,5 @@ cops_symfony_code_rsync_opts: [
     "--exclude", ".git",
     "--exclude", ".tox",
     "--exclude", ".env",
+    "--exclude", ".vscode",
     "--exclude", "docker.env"]
