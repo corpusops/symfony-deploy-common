@@ -5,7 +5,7 @@ cd "$SCRIPTSDIR/.."
 TOPDIR=$(pwd)
 
 # now be in stop-on-error mode
-set -ex
+set -e
 # load locales & default env
 # load this first as it resets $PATH
 for i in /etc/environment /etc/default/locale;do
@@ -37,11 +37,12 @@ DEFAULT_NO_MIGRATE=
 DEFAULT_NO_COMPOSER=
 DEFAULT_NO_STARTUP_LOGS=
 DEFAULT_NO_COLLECT_STATIC=
-# FIXME: what is this???
 if [[ -n $@ ]];then
     DEFAULT_NO_STARTUP_LOGS=1
+    DEFAULT_NO_MIGRATE=1
+    DEFAULT_NO_COLLECT_STATIC=1
 fi
-NO_STARTUP_LOGS=${NO_MIGRATE-$DEFAULT_NO_STARTUP_LOGS}
+NO_STARTUP_LOGS=${NO_STARTUP_LOGS-${NO_MIGRATE-$DEFAULT_NO_STARTUP_LOGS}}
 NO_MIGRATE=${NO_MIGRATE-$DEFAULT_NO_MIGRATE}
 NO_COMPOSER=${NO_COMPOSER-$DEFAULT_NO_COMPOSER}
 NO_COLLECT_STATIC=${NO_COLLECT_STATIC-$DEFAULT_NO_COLLECT_STATIC}
@@ -142,7 +143,7 @@ configure() {
     done
     # install with frep any template file to / (eg: logrotate & cron file)
     for i in $(find etc -name "*.frep" -type f 2>/dev/null);do
-        echo $i
+        log $i
         d="$(dirname "$i")/$(basename "$i" .frep)" \
             && di="/$(dirname $d)" \
             && if [ ! -e "$di" ];then mkdir -pv "$di" >&2;fi \
@@ -153,7 +154,6 @@ configure() {
     # regenerate symfony app/.env file
     frep "/code/app/.env.dist.frep://code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
-    cat /code/app/.env
 }
 
 #  services_setup: when image run in daemon mode: pre start setup
@@ -273,7 +273,6 @@ pre() {
 
 # only display startup logs when we start in daemon mode
 # and try to hide most when starting an (eventually interactive) shell.
-# if [[ -n $NO_STARTUP_LOGS ]];then pre 2>/dev/null;else pre;fi
 if [[ -n $NO_STARTUP_LOGS ]];then pre 2>/dev/null;else pre;fi
 
 if [[ -z "$@" ]]; then
