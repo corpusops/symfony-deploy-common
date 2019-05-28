@@ -45,7 +45,7 @@ RUN sh -exc ': \
         localedef \
             -i ${LANGUAGE} -c -f ${CHARSET} \
             -A /usr/share/locale/locale.alias \
-            ${LANGUAGE}.${cHARSET};\
+            ${LANGUAGE}.${CHARSET};\
     fi'
 ENV LANG=$LANG
 ENV LC_ALL=$LANG
