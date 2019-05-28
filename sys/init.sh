@@ -28,6 +28,12 @@ export PROJECT_DIR
 # activate shell debug if SDEBUG is set
 if [[ -n $SDEBUG ]];then set -x;fi
 
+# export back the gateway ip as a host if ip is available in container
+if ( ip -4 route list match 0/0 &>/dev/null );then
+    ip -4 route list match 0/0 \
+        | awk '{print $3" host.docker.internal"}' >> /etc/hosts
+fi
+
 DEFAULT_IMAGE_MODE=phpfpm
 
 export IMAGE_MODE=${IMAGE_MODE:-${DEFAULT_IMAGE_MODE}}
@@ -174,7 +180,7 @@ services_setup() {
     fi
     # alpine linux has /etc/crontabs/ and ubuntu based vixie has /etc/cron.d/
     if [ -e /etc/cron.d ] && [ -e /etc/crontabs ];then cp -fv /etc/crontabs/* /etc/cron.d >&2;fi
-    
+
     # composer install
     if [[ -z ${NO_COMPOSER} ]];then
         if [ -e /code/init/sbin/composerinstall.sh ]; then
@@ -188,7 +194,7 @@ services_setup() {
             && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:status \
             && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:migrate )
     fi
-    
+
     # FIXME Collect statics
     if [[ -z ${NO_COLLECT_STATIC} ]];then
         ( cd $PROJECT_DIR \
