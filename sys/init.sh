@@ -72,6 +72,8 @@ export PHP_MAX_SPARE_WORKERS=${PHP_MAX_SPARE_WORKERS:-35}
 export PHP_MIN_SPARE_WORKERS=${PHP_MIN_SPARE_WORKERS:-5}
 export PHP_DISPLAY_ERROR=${PHP_DISPLAY_ERROR:-0}
 export PHP_XDEBUG_REMOTE=${PHP_XDEBUG_REMOTE:-0}
+export PHP_XDEBUG_PROFILER_ENABLE_TRIGGER=${PHP_XDEBUG_PROFILER_ENABLE_TRIGGER:-1}
+export PHP_XDEBUG_REMOTE_AUTOSTART=${PHP_XDEBUG_REMOTE_AUTOSTART:-0}
 export PHP_XDEBUG_PORT=${PHP_XDEBUG_PORT:-9000}
 export PHP_XDEBUG_IP=${PHP_XDEBUG_IP:-172.17.0.1}
 export COOKIE_DOMAIN=${COOKIE_DOMAIN:-".local"}
@@ -158,7 +160,7 @@ configure() {
     done
 
     # regenerate symfony app/.env file
-    frep "/code/app/.env.dist.frep://code/app/.env" --overwrite
+    frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
 }
 

@@ -513,12 +513,11 @@ php_admin_value[xdebug.default_enable]          = 0
 ; http://xdebug.org/docs/all_settings#collect_params (0|1|2|3|4)
 php_admin_value[xdebug.collect_params]          = 0
 php_admin_value[xdebug.profiler_enable]         = 0
-php_admin_value[xdebug.profiler_enable_trigger] = 0
+php_admin_value[xdebug.profiler_enable_trigger] =  {{ .Env.PHP_XDEBUG_PROFILER_ENABLE_TRIGGER }}
 php_admin_value[xdebug.remote_enable] = {{ .Env.PHP_XDEBUG_REMOTE }}
-php_admin_value[xdebug.remote_autostart] = 0
+php_admin_value[xdebug.remote_autostart] = {{ .Env.PHP_XDEBUG_REMOTE_AUTOSTART }}
 php_admin_value[xdebug.remote_connect_back] = 0
 php_admin_value[xdebug.remote_port] = {{ .Env.PHP_XDEBUG_PORT }}
 php_admin_value[xdebug.remote_host] = "{{ .Env.PHP_XDEBUG_IP }}"
 php_admin_value[xdebug.remote_handler] = dbgp
-php_admin_value[xdebug.remote_log] = /logs/xdebug.log
 php_admin_value[xdebug.profiler_output_name]    =  "/cachegrind.out.%p"
