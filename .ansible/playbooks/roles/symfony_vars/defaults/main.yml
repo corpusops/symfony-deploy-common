@@ -96,6 +96,7 @@ cops_symfony_docker_env_defaults: |-
   SYMFONY__CORS_ORIGIN_WHITELIST={{cops_symfony_hosts_whitelist}}
   SYMFONY__ALLOWED_HOSTS={{cops_symfony_hosts_whitelist}}
   SYMFONY__DEPLOY_ENV={{cops_symfony_deploy_env}}
+  SYMFONY__PROJECT_ENV={{cops_symfony_project_env}}
   {% if cops_symfony_sentry_dsn %}
   SYMFONY__SENTRY_DSN={{cops_symfony_sentry_dsn}}
   SYMFONY__SENTRY_RELEASE={{cops_symfony_docker_tag}}
