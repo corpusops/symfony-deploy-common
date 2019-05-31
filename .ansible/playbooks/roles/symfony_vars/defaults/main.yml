@@ -1,9 +1,9 @@
 ---
 cops_symfony_name: symfonyinstance
 cops_symfony_project_module_name: "{{cops_symfony_name}}"
-cops_symfony_settings_module: "{{cops_symfony_project_module_name}}.settings.instances.{{cops_symfony_deploy_env}}"
 cops_symfony_php_ver: "7.2"
-cops_symfony_deploy_env: "dev"
+cops_symfony_deploy_env: "prod"
+cops_symfony_project_env: "PROD"
 cops_symfony_docker_image_tag: "{{cops_symfony_name}}"
 cops_symfony_default_docker_tag: "latest"
 cops_symfony_docker_tag: "{{cops_symfony_default_docker_tag}}"
@@ -89,6 +89,7 @@ cops_symfony_docker_env_defaults: |-
   PHP_MAX_WORKERS={{ cops_symfony_php_max_workers }}
   PHP_MAX_SPARE_WORKERS={{ cops_symfony_php_max_spare_workers }}
   PHP_MIN_SPARE_WORKERS={{ cops_symfony_php_min_spare_workers }}
+  PROJECT_ENV={{ cops_symfony_project_env }}
   APP_ENV={{ cops_symfony_deploy_env }}
   APP_SECRET={{ cops_symfony_secret_key }}
   # cors
