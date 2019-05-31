@@ -2,8 +2,8 @@
 cops_symfony_name: symfonyinstance
 cops_symfony_project_module_name: "{{cops_symfony_name}}"
 cops_symfony_php_ver: "7.2"
-cops_symfony_deploy_env: "prod"
-cops_symfony_project_env: "PROD"
+cops_symfony_deploy_env: "dev"
+cops_symfony_project_env: "DEV"
 cops_symfony_docker_image_tag: "{{cops_symfony_name}}"
 cops_symfony_default_docker_tag: "latest"
 cops_symfony_docker_tag: "{{cops_symfony_default_docker_tag}}"
