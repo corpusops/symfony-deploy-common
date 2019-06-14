@@ -91,8 +91,6 @@ cops_symfony_docker_env_defaults: |-
   PHP_MAX_SPARE_WORKERS={{ cops_symfony_php_max_spare_workers }}
   PHP_MIN_SPARE_WORKERS={{ cops_symfony_php_min_spare_workers }}
   PROJECT_ENV={{ cops_symfony_project_env }}
-  APP_ENV={{ cops_symfony_deploy_env }}
-  APP_SECRET={{ cops_symfony_secret_key }}
   # cors
   SYMFONY__CORS_ORIGIN_WHITELIST={{cops_symfony_hosts_whitelist}}
   SYMFONY__ALLOWED_HOSTS={{cops_symfony_hosts_whitelist}}
