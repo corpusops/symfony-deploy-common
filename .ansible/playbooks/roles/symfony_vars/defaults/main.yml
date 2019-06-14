@@ -78,6 +78,7 @@ cops_symfony_docker_env_defaults: |-
   POSTGRES_USER={{ cops_symfony_db_user }}
   POSTGRES_PORT={{ cops_symfony_db_port }}
   POSTGRES_DB={{ cops_symfony_db_name }}
+  POSTGRES_HOST={{ cops_symfony_db_host }}
   POSTGRES_PASSWORD={{cops_symfony_db_password }}
   PGPASSWD={{cops_symfony_db_password }}
   DATABASE_URL=pgsql://{{ cops_symfony_db_user }}:{{cops_symfony_db_password }}@{{ cops_symfony_db_host }}:{{ cops_symfony_db_port }}/{{ cops_symfony_db_name }}

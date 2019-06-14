@@ -194,7 +194,7 @@ services_setup() {
     if [[ -z ${NO_MIGRATE} ]];then
         ( cd $PROJECT_DIR \
             && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:status \
-            && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:migrate )
+            && gosu $APP_USER php bin/console --no-interaction --allow-no-migration doctrine:migrations:migrate )
     fi
 
     # FIXME Collect statics
