@@ -162,6 +162,10 @@ configure() {
     # regenerate symfony app/.env file
     frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
+
+    if [ -e /code/app/public.orig ] && [[ -z ${NO_COLLECT_STATIC} ]]; then
+        rsync -a /code/app/public.orig/ /code/app/public/
+    fi
 }
 
 #  services_setup: when image run in daemon mode: pre start setup

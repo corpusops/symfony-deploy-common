@@ -133,6 +133,13 @@ RUN bash -c 'set -ex \
     && rm -f /etc/php-fpm.d/www.conf \
   '
 
+# Take public dir in image and make a copy in public.orig that
+# the init script will sync to the public volume
+RUN bash -exc ': \
+  && rsync -a --delete /code/app/public/ /code/app/public.orig/ \
+'
+
+
 # image will drop privileges itself using gosu
 ENTRYPOINT []
 CMD "/init.sh"
