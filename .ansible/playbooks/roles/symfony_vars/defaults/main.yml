@@ -28,7 +28,7 @@ cops_symfony_build_args: "--no-cache symfony cron"
 # backup could be remove in a-while when we have redeployed it everywhere
 cops_symfony_restarted_services_default: "db symfony symfony-supervisor nginx backup cron"
 cops_symfony_restarted_services: "{{cops_symfony_restarted_services_default}}"
-cops_symfony_purge_volumes: [statics]
+cops_symfony_purge_volumes: []
 cops_symfony_sshargs: >-
   {% set k = hostvars[inventory_hostname].get(
                 'ansible_ssh_private_key_file', '') %}
