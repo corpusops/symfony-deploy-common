@@ -70,10 +70,14 @@ RUN bash -c 'set -ex \
     && cd /code \
     && mkdir app \
     && mkdir app/public \
+    && mkdir app/public/files \
     && mkdir app/private \
     && mkdir sbin \
     && mkdir sys \
     && mkdir init \
+    && mkdir var \
+    && mkdir var/cache \
+    && mkdir var/nginxwebroot \
     && mkdir -p local/symfony-deploy-common/ \
     && chown -R symfony:symfony /code \
     '
@@ -132,13 +136,6 @@ RUN bash -c 'set -ex \
     && : "remove default php-fpm pool" \
     && rm -f /etc/php-fpm.d/www.conf \
   '
-
-# Take public dir in image and make a copy in public.orig that
-# the init script will sync to the public volume
-RUN bash -exc ': \
-  && rsync -a --delete /code/app/public/ /code/app/public.orig/ \
-'
-
 
 # image will drop privileges itself using gosu
 ENTRYPOINT []

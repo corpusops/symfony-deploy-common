@@ -163,9 +163,14 @@ configure() {
     frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
 
-    if [ -e /code/app/public.orig ] && [[ -z ${NO_COLLECT_STATIC} ]]; then
-        rsync -a /code/app/public.orig/ /code/app/public/
+    if [ -e /code/app/var/nginxwebroot ] && [[ -z ${NO_COLLECT_STATIC} ]]; then
+        echo "Sync webroot for Nginx"
+        # Sync the webroot to a shared volume with Nginx
+        # but do not sync files which is already a shared Nginx volume
+        # containing public long term contributions
+        rsync -a --delete --exclude files/ /code/app/public/ /code/app/var/nginxwebroot/
     fi
+
 }
 
 #  services_setup: when image run in daemon mode: pre start setup
