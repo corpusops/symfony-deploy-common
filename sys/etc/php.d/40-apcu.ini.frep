@@ -1,3 +1,5 @@
+{{ $apcu_enabled := .Env.PHP_APCU_ENABLED | default "1" }}
+{{ if eq $apcu_enabled "1" }}
 extension = apcu.so
 apc.enabled=1
 apc.enable_cli=1
@@ -5,4 +7,4 @@ apc.enable_cli=1
 ;apc.ttl=0
 ;apc.gc_ttl=3600
 apc.mmap_file_mask=/tmp/apc.XXXXXX
-
+{{ end }}
