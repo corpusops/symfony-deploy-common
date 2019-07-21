@@ -112,6 +112,7 @@ cops_symfony_dotenv: |-
   SYMFONY_PHP_VER={{ cops_symfony_php_ver }}
   SYMFONY_NAME={{ cops_symfony_name }}
   COMPOSE_PROJECT_NAME={{cops_symfony_composename}}
+  CONTROL_COMPOSE_FIlES={{cops_symfony_compose_files|join(' ')}}
   CI_COMMIT_SHA={{cops_symfony_gitref}}
   SYMFONY_IMAGE={{ cops_symfony_docker_image }}
   SYMFONY_IMAGE_VERSION={{cops_symfony_docker_tag}}
