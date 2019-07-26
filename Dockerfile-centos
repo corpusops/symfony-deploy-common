@@ -111,7 +111,7 @@ RUN bash -c 'set -ex \
 # TODO: fix php upgrade breaking symfony c:c
 RUN bash -c 'set -ex \
     && : "temp fix ph" \
-    && yum downgrade -y php-7.2.19 php-cli-7.2.19 php-common-7.2.19 php-gd-7.2.19 php-intl-7.2.19 php-fpm-7.2.19 php-mbstring-7.2.19 php-json-7.2.19 php-dba-7.2.19 php-soap-7.2.19 php-imap-7.2.19 php-xml-7.2.19 php-bcmath-7.2.19 php-pdo-7.2.19 php-process-7.2.19 php-pdo-7.2.19 php-xmlrpc-7.2.19 php-mysqlnd-7.2.19 php-pgsql-7.2.19 \
+    && yum downgrade -y php-7.2.21 php-cli-7.2.21 php-common-7.2.21 php-gd-7.2.21 php-intl-7.2.21 php-fpm-7.2.21 php-mbstring-7.2.21 php-json-7.2.21 php-dba-7.2.21 php-soap-7.2.21 php-imap-7.2.21 php-xml-7.2.21 php-bcmath-7.2.21 php-pdo-7.2.21 php-process-7.2.21 php-pdo-7.2.21 php-xmlrpc-7.2.21 php-mysqlnd-7.2.21 php-pgsql-7.2.21 \
     '
 
 WORKDIR /code/app
