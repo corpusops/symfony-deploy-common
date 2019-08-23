@@ -126,8 +126,8 @@ RUN bash -c 'set -ex \
     '
 
 RUN bash -c 'set -ex \
-    && : "generate a default app.env from the app/.env.dist" \
-    && cp /code/app/.env.dist /code/app/.env \
+    && : "generate a default app.env from the app/.env.dist.frep" \
+    && frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite \
     && chown symfony:symfony /code/app/.env \
     '
 
