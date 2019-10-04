@@ -1,5 +1,5 @@
-{{ $apcu_enabled := .Env.PHP_OPCACHE_ENABLED | default "1" }}
-{{ if eq $apcu_enabled "1" }}
+{{ $opcache_enabled := .Env.PHP_OPCACHE_ENABLED | default "1" }}
+{{ if eq $opcache_enabled "1" }}
 zend_extension=opcache
 opcache.enable=1
 opcache.enable_cli=1
