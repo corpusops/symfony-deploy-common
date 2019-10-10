@@ -99,8 +99,6 @@ cops_symfony_docker_env_defaults: |-
   PHP_APCU_ENABLED={{ cops_symfony_php_apcu_enabled }}
   PHP_OPCACHE_ENABLED={{ cops_symfony_php_opcache_enabled }}
   PROJECT_ENV={{ cops_symfony_project_env }}
-  # e2e tests
-  CYPRESS_baseUrl=http://{{ cops_symfony_hostname }}
   # cors
   SYMFONY__CORS_ORIGIN_WHITELIST={{cops_symfony_hosts_whitelist}}
   SYMFONY__ALLOWED_HOSTS={{cops_symfony_hosts_whitelist}}
