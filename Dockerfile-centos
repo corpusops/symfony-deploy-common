@@ -121,9 +121,9 @@ WORKDIR /code/app
 ADD keys/* /home/symfony/.ssh/
 RUN bash -c 'set -ex \
     && : "alter rights and ownerships of ssh keys" \
-    && (chmod 0600 /home/symfony/.ssh/* || exit 0) \
-    && (chmod 0644 /home/symfony/.ssh/*.pub || exit 0) \
-    && (chown -R symfony:symfony /home/symfony/.ssh/* || exit 0) \
+    && (chmod 0600 /home/symfony/.ssh/* || true) \
+    && (chmod 0644 /home/symfony/.ssh/*.pub || true) \
+    && (chown -R symfony:symfony /home/symfony/.ssh/* || true) \
     '
 
 RUN bash -c 'set -ex \
