@@ -172,18 +172,18 @@ configure() {
     fi
 
     # add shortcuts to composer binaries on the project if they do not exists
-    if [[ ! -L "$PROJECT_DIR/app/bin/composerinstall" ]];then
-        if [[ -f "$PROJECT_DIR/app/bin/composerinstall" ]]; then
-          rm -f "$PROJECT_DIR/app/bin/composerinstall"
+    if [[ ! -L "$PROJECT_DIR/bin/composerinstall" ]];then
+        if [[ -f "$PROJECT_DIR/bin/composerinstall" ]]; then
+          rm -f "$PROJECT_DIR/bin/composerinstall"
         fi
-        ( cd $PROJECT_DIR/app/bin \
+        ( cd $PROJECT_DIR/bin \
             && gosu $APP_USER ln -s ../../init/sbin/composerinstall.sh composerinstall )
     fi
-    if [[ ! -L "$PROJECT_DIR/app/bin/composer" ]];then
-        if [[ -f "$PROJECT_DIR/app/bin/composer" ]]; then
-          rm -f "$PROJECT_DIR/app/bin/composer"
+    if [[ ! -L "$PROJECT_DIR/bin/composer" ]];then
+        if [[ -f "$PROJECT_DIR/bin/composer" ]]; then
+          rm -f "$PROJECT_DIR/bin/composer"
         fi
-        ( cd $PROJECT_DIR/app/bin \
+        ( cd $PROJECT_DIR/bin \
             && gosu $APP_USER ln -s ../../init/sbin/composer.sh composer )
     fi
 }
