@@ -171,6 +171,21 @@ configure() {
         rsync -a --delete --exclude files/ /code/app/public/ /code/app/var/nginxwebroot/
     fi
 
+    # add shortcuts to composer binaries on the project if they do not exists
+    if [[ ! -L "$PROJECT_DIR/app/bin/composerinstall" ]];then
+        if [[ -f "$PROJECT_DIR/app/bin/composerinstall" ]]; then
+          rm -f "$PROJECT_DIR/app/bin/composerinstall"
+        fi
+        ( cd $PROJECT_DIR/app/bin \
+            && gosu $APP_USER ln -s ../../init/sbin/composerinstall.sh composerinstall )
+    fi
+    if [[ ! -L "$PROJECT_DIR/app/bin/composer" ]];then
+        if [[ -f "$PROJECT_DIR/app/bin/composer" ]]; then
+          rm -f "$PROJECT_DIR/app/bin/composer"
+        fi
+        ( cd $PROJECT_DIR/app/bin \
+            && gosu $APP_USER ln -s ../../init/sbin/composer.sh composer )
+    fi
 }
 
 #  services_setup: when image run in daemon mode: pre start setup
@@ -197,21 +212,6 @@ services_setup() {
         if [ -e /code/init/sbin/composerinstall.sh ]; then
             /code/init/sbin/composerinstall.sh
         fi
-    fi
-    # add shortcuts to composer binaries on the project if they do not exists
-    if [[ ! -L "$PROJECT_DIR/app/bin/composerinstall" ]];then
-        if [[ -f "$PROJECT_DIR/app/bin/composerinstall" ]]; then
-          rm -f "$PROJECT_DIR/app/bin/composerinstall"
-        fi
-        ( cd $PROJECT_DIR/app/bin \
-            && gosu $APP_USER ln -s ../../init/sbin/composerinstall.sh composerinstall )
-    fi
-    if [[ ! -L "$PROJECT_DIR/app/bin/composer" ]];then
-        if [[ -f "$PROJECT_DIR/app/bin/composer" ]]; then
-          rm -f "$PROJECT_DIR/app/bin/composer"
-        fi
-        ( cd $PROJECT_DIR/app/bin \
-            && gosu $APP_USER ln -s ../../init/sbin/composer.sh composer )
     fi
 
     # FIXME: symfony migrations?
