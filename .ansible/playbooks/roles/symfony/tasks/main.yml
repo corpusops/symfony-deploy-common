@@ -3,7 +3,7 @@
     state: directory
     mode: "2751"
     path: "{{item}}"
-  with_items:
+  loop:
   - "{{cops_symfony_dir}}"
   - "{{cops_symfony_dir}}/local/postgresql/data"
   - "{{cops_symfony_dir}}/local/backup"
@@ -32,7 +32,7 @@
       {{cops_symfony_dotenv_extra}}
     marker: "# ANSIBLE MANAGED BLOCK :: deploy commit :: {mark}"
 - include_tasks: docker_login.yml
-  with_items: "{{cops_symfony_registries}}"
+  loop: "{{cops_symfony_registries}}"
 - shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
