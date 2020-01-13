@@ -121,6 +121,7 @@ cops_symfony_docker_env_defaults: |-
 cops_symfony_dotenv: |-
   APP_TYPE=symfony
   SYMFONY_PHP_VER={{ cops_symfony_php_ver }}
+  SYMFONY_PHP_VER_NO_DOT={{ cops_symfony_php_ver|replace('.','')}}
   SYMFONY_NAME={{ cops_symfony_name }}
   COMPOSE_PROJECT_NAME={{cops_symfony_composename}}
   CONTROL_COMPOSE_FIlES={{cops_symfony_compose_files|join(' ')}}
