@@ -160,8 +160,17 @@ configure() {
     done
 
     # regenerate symfony app/.env file
+    log "regenerate /code/app/.env"
     frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
+
+    # regenerate potential linked front project .env file in public directory
+    if [ -f /code/app/.front_env.frep ]; then
+        FRONT_ENV_FILE="${FRONT_ENV_FILE:-"/code/app/public/front/build/.env"}"
+        log "regenerate ${FRONT_ENV_FILE}"
+        frep "/code/app/.front_env.frep:${FRONT_ENV_FILE}" --overwrite
+        chown symfony:symfony "${FRONT_ENV_FILE}"
+    fi
 
     if [ -e /code/app/var/nginxwebroot ] && [[ -z ${NO_COLLECT_STATIC} ]]; then
         echo "Sync webroot for Nginx"
