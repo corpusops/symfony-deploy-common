@@ -329,6 +329,14 @@ if [[ -z "$@" ]]; then
         if [[ "$IMAGE_MODE" = "phpfpm" ]]; then
             do_phpfpm
         else
+
+            if [[ "$IMAGE_MODE" = "cron" ]]; then
+                if [[ -f /code/sys/crontab ]]; then
+                    log "Ensure user crontab is registered"
+                    gosu $APP_USER crontab /code/sys/crontab
+                    gosu $APP_USER crontab -l
+                fi
+            fi
             cfg="/etc/supervisor.d/$IMAGE_MODE"
             if [ ! -e $cfg ];then
                 log "Missing: $cfg"
