@@ -471,7 +471,7 @@ php_value[max_input_time]     ="300"
 ; Maximum amount of time each script may spend parsing request data
 php_value[max_execution_time] ="120"
 ; Maximum amount of memory a script may consume (8MB)
-php_value[memory_limit]       ="128M"
+php_value[memory_limit]       ="{{ .Env.PHP_MEMORY_LIMIT }}"
 
 ; Sessions: IMPORTANT reactivate garbage collector on Debian!!!
 php_value[session.gc_maxlifetime]              = 3600

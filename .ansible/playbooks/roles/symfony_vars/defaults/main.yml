@@ -69,6 +69,7 @@ cops_symfony_sentry_dsn: ''
 cops_symfony_php_max_workers: "10"
 cops_symfony_php_max_spare_workers: "5"
 cops_symfony_php_min_spare_workers: "3"
+cops_symfony_php_memory_limit: "128M"
 cops_symfony_php_apcu_enabled: "1"
 cops_symfony_php_opcache_enabled: "1"
 cops_symfony_docker_env_freeform: |-
@@ -93,6 +94,7 @@ cops_symfony_docker_env_defaults: |-
   ABSOLUTE_URL_SCHEME=https
   ABSOLUTE_URL_DOMAIN={{ cops_symfony_hostname }}
   ABSOLUTE_URL_PORT=
+  PHP_MEMORY_LIMIT={{ cops_symfony_php_memory_limit }}
   PHP_MAX_WORKERS={{ cops_symfony_php_max_workers }}
   PHP_MAX_SPARE_WORKERS={{ cops_symfony_php_max_spare_workers }}
   PHP_MIN_SPARE_WORKERS={{ cops_symfony_php_min_spare_workers }}
