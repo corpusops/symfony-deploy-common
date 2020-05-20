@@ -164,12 +164,12 @@ configure() {
     frep "/code/app/.env.dist.frep:/code/app/.env" --overwrite
     chown symfony:symfony "/code/app/.env"
 
-    # regenerate potential linked front project .env file in public directory
-    if [ -f /code/app/.front_env.frep ]; then
-        FRONT_ENV_FILE="${FRONT_ENV_FILE:-"/code/app/public/front/build/.env"}"
-        log "regenerate ${FRONT_ENV_FILE}"
-        frep "/code/app/.front_env.frep:${FRONT_ENV_FILE}" --overwrite
-        chown symfony:symfony "${FRONT_ENV_FILE}"
+    # regenerate potential linked front project index.html file in public directory
+    if [ -f /code/app/.front_index.frep ]; then
+        FRONT_INDEX_FILE="${FRONT_INDEX_FILE:-"/code/app/public/front/dist/index.html"}"
+        log "regenerate ${FRONT_INDEX_FILE}"
+        frep "/code/app/.front_index.frep:${FRONT_INDEX_FILE}" --overwrite
+        chown symfony:symfony "${FRONT_INDEX_FILE}"
     fi
 
     if [ -e /code/app/var/nginxwebroot ] && [[ -z ${NO_COLLECT_STATIC} ]]; then
