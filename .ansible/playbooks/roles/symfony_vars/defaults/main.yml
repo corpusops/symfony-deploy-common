@@ -7,6 +7,7 @@ cops_symfony_deploy_env: "{{ (
   cops_symfony_gitref in [cops_symfony_default_gitref, cops_symfony_default_docker_tag]
     and cops_symfony_default_deploy_env
     or  cops_symfony_branch_envs.get(cops_symfony_gitref, cops_symfony_default_deploy_env))}}"
+cops_symfony_app_env: "{{cops_symfony_deploy_env}}"
 cops_symfony_docker_tag: "{{cops_symfony_gitref.replace('master', cops_symfony_default_docker_tag)}}"
 cops_symfony_project_env: "DEV"
 cops_symfony_docker_image: "{{cops_symfony_name}}"
@@ -181,7 +182,7 @@ cops_symfony_dotenv_defaults: |-
   CI_COMMIT_SHA={{cops_symfony_gitref}}
   SYMFONY_IMAGE={{ cops_symfony_docker_image }}
   SYMFONY_IMAGE_VERSION={{cops_symfony_docker_tag}}
-  APP_ENV={{ cops_symfony_deploy_env }}
+  APP_ENV={{ cops_symfony_app_env }}
   APP_SECRET={{ cops_symfony_secret_key }}
 cops_symfony_dotenv: "{{cops_symfony_dotenv_defaults}}"
 cops_symfony_dotenv_extra: ""
