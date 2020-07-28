@@ -353,7 +353,8 @@ services_setup() {
                 debuglog "Skipping composer install"
             fi
             if [[ -z "${SKIP_COMPOSER_HOOKS-}" ]];then
-                dvv /code/init/sbin/composer.sh run-script pre-install-cmd
+                # XXX: for now, no pre-install-cmd on symfony
+                # dvv /code/init/sbin/composer.sh run-script pre-install-cmd
                 dvv /code/init/sbin/composer.sh run-script post-install-cmd
             fi
         fi
