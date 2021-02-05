@@ -91,6 +91,10 @@ vv() {
     log "$@";"$@";
 }
 
+die() {
+    log "$@";exit 1;
+}
+
 #  shell: Run interactive shell inside container
 _shell() {
     local pre=""
@@ -179,7 +183,8 @@ configure() {
         # Sync the webroot to a shared volume with Nginx
         # but do not sync files which is already a shared Nginx volume
         # containing public long term contributions
-        rsync -a --delete --exclude files/ /code/app/public/ /code/app/var/nginxwebroot/
+        rsync -a --delete --exclude files/ /code/app/public/ /code/app/var/nginxwebroot/ \
+            || "sync webroot failed"
     fi
 
     # add shortcuts to composer binaries on the project if they do not exists
@@ -188,14 +193,16 @@ configure() {
           rm -f "$PROJECT_DIR/bin/composerinstall"
         fi
         ( cd $PROJECT_DIR/bin \
-            && gosu $APP_USER ln -s ../../init/sbin/composerinstall.sh composerinstall )
+            && gosu $APP_USER ln -s ../../init/sbin/composerinstall.sh composerinstall ) \
+                || die "composerinstall link failed"
     fi
     if [[ ! -L "$PROJECT_DIR/bin/composer" ]];then
         if [[ -f "$PROJECT_DIR/bin/composer" ]]; then
           rm -f "$PROJECT_DIR/bin/composer"
         fi
         ( cd $PROJECT_DIR/bin \
-            && gosu $APP_USER ln -s ../../init/sbin/composer.sh composer )
+            && gosu $APP_USER ln -s ../../init/sbin/composer.sh composer ) \
+                || die "composerinstall link2 failed"
     fi
 }
 
@@ -221,7 +228,7 @@ services_setup() {
     # composer install
     if [[ -z ${NO_COMPOSER} ]];then
         if [ -e /code/init/sbin/composerinstall.sh ]; then
-            /code/init/sbin/composerinstall.sh
+            /code/init/sbin/composerinstall.sh || die "composerinstall failed"
         fi
     fi
 
@@ -229,14 +236,14 @@ services_setup() {
     # Run any migration
     if [[ -z ${NO_MIGRATE} ]];then
         ( cd $PROJECT_DIR \
-            && gosu $APP_USER php bin/console --no-interaction doctrine:migrations:status \
-            && gosu $APP_USER php bin/console --no-interaction --allow-no-migration doctrine:migrations:migrate )
+            && ( gosu $APP_USER php bin/console --no-interaction doctrine:migrations:status || die "doctrine status failed" ) \
+            && ( gosu $APP_USER php bin/console --no-interaction --allow-no-migration doctrine:migrations:migrate || die "doctrine migrate failed" ); )
     fi
 
     # FIXME Collect statics
     if [[ -z ${NO_COLLECT_STATIC} ]];then
         ( cd $PROJECT_DIR \
-           && gosu $APP_USER php bin/console --no-interaction assets:install)
+           && gosu $APP_USER php bin/console --no-interaction assets:install || die "assets install failed")
     fi
 
     # cd $PROJECT_DIR && gosu $APP_USER php bin/console --no-interaction about
