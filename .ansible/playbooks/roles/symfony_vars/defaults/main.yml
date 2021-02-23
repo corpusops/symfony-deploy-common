@@ -74,11 +74,11 @@ cops_symfony_php_opcache_enabled: "1"
 cops_symfony_docker_env_freeform: |-
   {{ cops_symfony_docker_env_defaults}}
   {{ cops_symfony_docker_env_extra}}
-cops_symfony_docker_env_defaults: |-
-  PROJECT_PACKAGE={{ cops_symfony_name }}
-  PROJECT_DIR=/code/app
+cops_symfony_docker_env_defaults: ""
 # free form for params inside dockerenv
 cops_symfony_dotenv_defaults: |-
+  PROJECT_PACKAGE={{ cops_symfony_name }}
+  PROJECT_DIR=/code/app
   # This need to be changed in production
   SECRET_KEY={{ cops_symfony_secret_key }}
   # db
