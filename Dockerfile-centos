@@ -1,0 +1,183 @@
+# syntax=docker/dockerfile:1.3
+# To slim down the final size, this image absoutly need to be squashed at the end of the build
+# stages:
+# - stage base: install & setup layout
+# - stage final(base): copy results from build to a ligther image
+ARG BASE=corpusops/centos-bare:7
+FROM $BASE AS base
+ARG APP_GROUP=
+ARG APP_TYPE=symfony
+ARG APP_USER=
+ARG BUILD_DEV=
+ARG CHARSET=UTF-8
+ARG FPM_LOGS_DIR=/logs/phpfpm
+ARG COMPOSER_DOWNLOAD_URL=https://getcomposer.org
+ARG COMPOSER_VERSION=1.10.16
+ARG DEV_DEPENDENCIES_PATTERN='^#\s*dev dependencies'
+ARG GPG_KEYS=B42F6819007F00F88E364FD4036A9C25BF357DD4
+ARG GPG_KEYS_SERVERS="hkp://p80.pool.sks-keyservers.net:80 hkp://ipv4.pool.sks-keyservers.net hkp://pgp.mit.edu:80"
+ARG HOST_USER_UID=1000
+ARG LANG=fr_FR.utf8
+ARG LANGUAGE=fr_FR
+ARG PHP_GROUP=apache
+ARG PHP_VER=7.2
+ARG PHP_VER_NO_DOT=72
+ARG TZ=Europe/Paris
+ARG COMPOSER_INSTALLED_FILE=/code/app/.composerinstalled
+ENV \
+    APP_TYPE="${APP_TYPE}" \
+    BUILD_DEV="$BUILD_DEV" \
+    PHP_GROUP="${PHP_GROUP}" \
+    APP_USER="${APP_USER:-$APP_TYPE}" \
+    APP_GROUP="${APP_GROUP:-$APP_TYPE}" \
+    FPM_LOGS_DIR="${FPM_LOGS_DIR}" \
+    COMPOSER_VERSION="$COMPOSER_VERSION" \
+    DEBIAN_FRONTEND="noninteractive" \
+    LANG="$LANG" \
+    LC_ALL="$LANG" \
+    PHP_VER="$PHP_VER" \
+    PHP_VER_NO_DOT="$PHP_VER_NO_DOT" \
+    COMPOSER_INSTALLED_FILE="${COMPOSER_INSTALLED_FILE}"
+
+WORKDIR /code
+USER root
+ADD yum.txt ./
+RUN bash -exc ': \
+    \
+    && : "install packages" \
+    && sed -i -re "s/(php-?)[0-9]\.[0-9]+/\1$PHP_VER/g" yum.txt \
+    && yum -y update \
+    && yum -y install epel-release \
+    && yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
+    && yum -y install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm \
+    && yum install -y yum-utils yum-priorities \
+    && yum -y update \
+    && yum-config-manager --enable remi-php${PHP_VER_NO_DOT} \
+    && yum -y install $(sed -re "/$DEV_DEPENDENCIES_PATTERN/,$ d" yum.txt|grep -vE "^\s*#"|tr "\n" " " ) \
+    && yum clean all \
+  '
+
+RUN bash -exc ': \
+    \
+    && : "remove default php-fpm pool"\
+    && find $(ls -1d /etc/php*fpm* /etc/php*/*fpm* /etc/php*/*/*fpm*  2>/dev/null || true) /bin -type f -name www.conf -print -delete\
+    \
+    && : "on debian based systems, link pool definitions" \
+    && (ls -1d /etc/php*/*/*fpm*/pool.d 2>/dev/null||true)|while read p;do rm -rf "$p";ln -sfv /etc/php-fpm.d $p;done\
+    \
+    && : "install composer"\
+    && if (echo $COMPOSER_VERSION|egrep -vq "\." );then u="$COMPOSER_DOWNLOAD_URL/composer-${COMPOSER_VERSION}.phar";\
+       else u="$COMPOSER_DOWNLOAD_URL/download/${COMPOSER_VERSION}/composer.phar";fi\
+    && curl -sS "$u" -o /usr/local/bin/composer \
+    && chmod +x /usr/local/bin/composer \
+    && /usr/local/bin/composer --version  \
+    \
+    && : "make shortcut links for php"\
+    && ln -s $(which php-fpm${PHP_VER}) /usr/local/bin/php-fpm \
+    && ln -s $(which php${PHP_VER}) /usr/local/bin/php \
+    \
+    && : "setup project user & workdir, and ssh">&2\
+    && for g in $APP_GROUP $PHP_GROUP;do if !( getent group ${g} &>/dev/null );then groupadd ${g};fi;done \
+    && if !( getent passwd ${APP_USER} &>/dev/null );then useradd -g ${APP_GROUP} -ms /bin/bash ${APP_USER} --uid ${HOST_USER_UID} --home-dir /home/${APP_USER};fi \
+    && ( usermod -a -G $PHP_GROUP $APP_USER || true ) \
+    && if [ ! -e /home/${APP_USER}/.ssh ];then mkdir /home/${APP_USER}/.ssh;fi \
+    && chown -R ${APP_USER}:${APP_GROUP} /home/${APP_USER} . \
+    && chown -R ${APP_USER}:${PHP_GROUP} . \
+    && chmod 2755 . \
+    \
+    && : "set locale"\
+    && export INSTALL_LOCALES="${LANG}" INSTALL_DEFAULT_LOCALE="${LANG}" \
+    && if [ -e /usr/bin/setup_locales.sh ];then /usr/bin/setup_locales.sh; \
+       elif [ -e /bin/setup_locales.sh ];then /bin/setup_locales.sh; \
+       else localedef -i ${LANGUAGE} -c -f ${CHARSET} -A /usr/share/locale/locale.alias ${LANGUAGE}.${CHARSET};\
+       fi\
+    \
+    && : "setup project timezone"\
+    && date && : "set correct timezone" \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
+    '
+
+FROM base AS appsetup
+RUN bash -exc ': \
+    && : "install dev packages" \
+    && yum -y update \
+    && yum-config-manager --enable remi-php${PHP_VER_NO_DOT} \
+    && yum -y install $(cat yum.txt|grep -vE "^\s*#"|tr "\n" " " ) \
+    && yum clean all \
+    '
+# Potential ssh keys for application user
+ADD --chown=${APP_USER}:${APP_GROUP} keys/*                           /home/${APP_USER}/.ssh/
+ADD --chown=${APP_USER}:${PHP_GROUP} app                              ./app
+ADD --chown=${APP_USER}:${PHP_GROUP} sys/sbin                         ./sbin
+ADD --chown=${APP_USER}:${PHP_GROUP} sys                              ./sys
+ADD --chown=${APP_USER}:${PHP_GROUP} local/${APP_TYPE}-deploy-common/ ./local/${APP_TYPE}-deploy-common/
+
+
+# We make an intermediary init folder to allow to have the
+#
+# entrypoint mounted as a volume in dev
+# cp -frnv => keeps existing stuff, add new stuff, this allows for existing files in project
+# overriding the common stuff
+# common -> sys
+# sys -> init
+# ==> init contains files from both local sys and common, common cannot override content from local sys
+FROM appsetup AS final
+RUN bash -exc ': \
+    && : "alter rights and ownerships of ssh keys" \
+    && chmod 0700 /home/${APP_USER}/.ssh \
+    && (chmod 0600 /home/${APP_USER}/.ssh/* || true) \
+    && (chmod 0644 /home/${APP_USER}/.ssh/*.pub || true) \
+    && (chown -R ${APP_USER}:${APP_GROUP} /home/${APP_USER}/.ssh/* || true) \
+    \
+    && : "create layout" \
+    && mkdir -vp sys init sbin\
+    app/bin app/lib app/scripts app/src app/www app/var \
+    app/public/files app/private app/var/tmp var/cache var/nginxwebroot \
+    local/${APP_TYPE}-deploy-common >&2\
+    \
+    && : "if we found a static dist inside the sys directory, it has been injected during " \
+    && :  "the CI process, we just unpack it" \
+    && if [ -e sys/statics ];then\
+     while read f;do tar xf ${f};done \
+      < <(find sys/statics -name "*.tar"); \
+     while read f;do tar xJf ${f};done \
+      < <(find sys/statics -name "*.txz" -or -name "*.xz"); \
+     while read f;do tar xjf ${f};done \
+      < <(find sys/statics -name "*.tbz2" -or -name "*.bz2"); \
+     while read f;do tar xzf ${f};done \
+      < <(find sys/statics -name "*.tgz" -or -name "*.gz"); \
+    fi\
+    && rm -rfv sys/statics \
+    \
+    && : "assemble init" \
+    && cp -frnv local/${APP_TYPE}-deploy-common/sys/* sys \
+    && cp -frnv sys/* init \
+    \
+    && : "connect init.sh" \
+    && ln -sf $(pwd)/init/init.sh /init.sh \
+    \
+    && : "generate a default app.env from the app/.env.dist.frep" \
+    && frep "app/.env.dist.frep:app/.env" --overwrite \
+    \
+    && : "latest fixperm" \
+    && find $(pwd) -not -user ${APP_USER} | ( set +x;while read f;do chown ${APP_USER}:${PHP_GROUP} "$f";done ) \
+    \
+    && : "run composer install with --no-scripts switch is to avoid the symfony cache clear." \
+    && : "Indeed this one requires a working database" \
+    && nodev='' && if  [ "x${BUILD_DEV}" != "xy" ];then nodev="--no-dev";fi \
+    && cd app && gosu ${APP_USER} ../init/sbin/composerinstall.sh ${nodev} --no-scripts && touch "${COMPOSER_INSTALLED_FILE}" && cd -\
+    \
+    && : "final cleanup" \
+    && ( rm -rvf /root/.cache/composer /home/*/.cache/composer ) || true \
+    '
+
+FROM base AS runner
+RUN --mount=type=bind,from=final,target=/s bash -exc ': \
+    && for i in /init.sh /home/ /code/;do rsync -aAH --numeric-ids /s${i} ${i};done \
+    && : "Fix crond & pam error in RedHat --FAILED to open PAM security session (Cannot make/remove an entry for the specified session)--" \
+    && sed -i "/session    required   pam_loginuid.so/c\#session    required   pam_loginuid.so" /etc/pam.d/crond \
+    '
+WORKDIR /code/app
+# image will drop privileges itself using gosu at the end of the entrypoint
+CMD "/init.sh"
+
