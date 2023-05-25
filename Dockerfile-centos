@@ -46,6 +46,7 @@ RUN bash -exc ': \
     \
     && : "install packages" \
     && sed -i -re "s/(php-?)[0-9]\.[0-9]+/\1$PHP_VER/g" yum.txt \
+    && ulimit -n 1024000 \
     && yum -y update \
     && yum -y install epel-release \
     && yum -y install http://rpms.remirepo.net/enterprise/remi-release-7.rpm \
@@ -100,6 +101,7 @@ RUN bash -exc ': \
 FROM base AS appsetup
 RUN bash -exc ': \
     && : "install dev packages" \
+    && ulimit -n 1024000 \
     && yum -y update \
     && yum-config-manager --enable remi-php${PHP_VER_NO_DOT} \
     && yum -y install $(cat yum.txt|grep -vE "^\s*#"|tr "\n" " " ) \
