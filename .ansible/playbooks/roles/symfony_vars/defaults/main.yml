@@ -15,7 +15,8 @@ cops_symfony_tld_domain: example.com
 cops_symfony_mail_domain: "{{ cops_symfony_tld_domain }}"
 cops_symfony_default_gitref: "master"
 cops_symfony_gitref: "{{cops_symfony_default_gitref}}"
-cops_symfony_dir: "/srv/docker/{{cops_symfony_name}}"
+cops_symfony_dir_default: "/srv/docker/{{cops_symfony_name}}"
+cops_symfony_dir: "{{cops_symfony_dir_default}}"
 cops_symfony_hostname: "{{cops_symfony_deploy_env}}-{{cops_symfony_name}}.{{cops_symfony_tld_domain}}"
 cops_symfony_alternate_hostnames: [".{{cops_symfony_tld_domain}}"]
 cops_symfony_secret_key: "SuperSecret"
@@ -401,7 +402,7 @@ ansible_bastion: ""
 cops_symfony_sync_ssh_user_internal: "{% if((cops_symfony_force_sync_ssh_user) or
         (cops_symfony_sync_ssh_user and (cops_symfony_force_sync_ssh_user == True))
     )%}{{ cops_symfony_sync_ssh_user or ansible_user or '' }}{% endif %}"
-teleport_env_ssh_deploy_key: "/srv/docker/{{cops_symfony_name}}/local/.ssh/deploy"
+teleport_env_ssh_deploy_key: "{{cops_symfony_dir_default}}/local/.ssh/deploy"
 teleport_bastion_ssh_deploy_key: "{{teleport_env_ssh_deploy_key}}"
 teleport_origin_viabastion_sshargs: "{% set d = hostvars[groups[teleport_origin][0]] %}{%if ansible_bastion%}-o ProxyCommand=\"ssh {% if teleport_bastion_ssh_deploy_key %}-i {{teleport_bastion_ssh_deploy_key}} {%endif%}-o IdentitiesOnly=yes -q -W {{d.ansible_host}}:{{d.ansible_port|default('22')}} {{ansible_bastion}} {%if ansible_bastion_user%}-l {{ansible_bastion_user}}{%endif%} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no\" {%endif%}"
 teleport_destination_viabastion_sshargs: "{% set d = hostvars[groups[teleport_destination][0]] %}{%if ansible_bastion%}-o ProxyCommand=\"ssh {% if teleport_bastion_ssh_deploy_key %}-i {{teleport_bastion_ssh_deploy_key}} {%endif%}-o IdentitiesOnly=yes -q -W {{d.ansible_host}}:{{d.ansible_port|default('22')}} {{ansible_bastion}} {%if ansible_bastion_user%}-l {{ansible_bastion_user}}{%endif%} -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no\" {%endif%}"
