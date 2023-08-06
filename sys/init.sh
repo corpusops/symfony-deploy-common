@@ -342,7 +342,7 @@ services_setup() {
             else
                 debuglog "composer install already ran (${COMPOSER_INSTALLED_FILE})"
             fi
-            if ! ( echo "${DRUPAL_ENV_NAME}" | grep -Eq "${COMPOSER_NO_NO_DEV_ENVS}" );then
+            if ! ( echo "${SYMFONY_ENV_NAME}" | grep -Eq "${COMPOSER_NO_NO_DEV_ENVS}" );then
                 if ( echo ${COMPOSER_INSTALL_ARGS} | grep -vq -- --no-dev );then
                     COMPOSER_INSTALL_ARGS="${COMPOSER_INSTALL_ARGS-} --no-dev"
                 fi

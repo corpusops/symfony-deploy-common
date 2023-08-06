@@ -57,6 +57,18 @@
       project: "{{cops_symfony_composename}}"
       restart: "on-failure"
   tags: [service]
+# start maintenance mode
+- tags: [symfony_service, symfony_maintenance, symfony_disable_maintenance]
+  shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "touch {{cops_symfony_maintenance_flags_dir}}/MAINTENANCE"
+# suspend cron tasks
+- tags: [symfony_service, symfony_cron, symfony_disable_cron]
+  shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "touch {{cops_symfony_maintenance_flags_dir}}/SUSPEND_CRONS"
 # ensure manually handled services are booted
 # to handle sidekar volumes refresh accuratly
 - shell: |
@@ -114,3 +126,15 @@
   - "cops_symfony_docker_tag|copsf_asbool"
   - "cops_symfony_purge_volumes|copsf_asbool"
   changed_when: "'purged volume' in purge_volumes.stderr"
+# remove maintenance mode ----
+- tags: [symfony_post_restart, symfony_maintenance, symfony_disable_maintenance]
+  shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "rm -f {{cops_symfony_maintenance_flags_dir}}/MAINTENANCE"
+# re-enable crons
+- tags: [symfony_post_restart, symfony_cron, symfony_enable_cron]
+  shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "rm -f {{cops_symfony_maintenance_flags_dir}}/SUSPEND_CRONS"
