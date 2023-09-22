@@ -1,7 +1,8 @@
 ; syntaxe supervisor-go pour docker
-[program:aavantmessenger]
+{{ $command := .Env.SYMFONY_DISPATCH_COMMAND | default "/code/app/bin/console dispatcher:run" }}
+[program:messenger]
 ; Command to start app
-command = /code/app/bin/console dispatcher:run
+command = {{ $command }}
 directory = /code/app
 autostart=true
 autorestart=true
