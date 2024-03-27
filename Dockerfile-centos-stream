@@ -11,7 +11,7 @@ ARG \
     APP_GROUP= \
     APP_TYPE=symfony \
     APP_USER= \
-    BASE=corpusops/debian-bare:11 \
+    BASE=corpusops/centos-bare:8 \
     BASE_DIR=/code \
     BUILD_DEV= \
     CANONICAL_APT_MIRROR='https://fr.archive.canonical.com/ubuntu/' \
@@ -101,35 +101,39 @@ ENV \
     WITH_VSCODE="$WITH_VSCODE"
 WORKDIR $BASE_DIR
 USER root
-ADD apt.txt ./
 RUN \
-    --mount=type=bind,from=ppafetcher,target=/ppa \
-    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt \
-    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists \
+    --mount=type=cache,id=cops${BASE}dnf,target=/var/cache/dnf \
+    --mount=type=cache,id=cops${BASE}yum,target=/var/cache/yum \
     bash -c 'set -exo pipefail \
-    && : "bring in sury debian php packages" \
-    && apt-get update && apt-get -y install apt-transport-https ca-certificates curl \
-    && wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg \
-    && echo "deb https://packages.sury.org/php/ $( . /etc/os-release && echo $VERSION_CODENAME) main" > /etc/apt/sources.list.d/php.list \
     \
+    && : "Convert Centos8 to Centos-stream" \
+    && yum -y update \
+    && yum -y install dnf \
+    && dnf -y install centos-release-stream -y \
+    && dnf -y swap centos-{linux,stream}-repos \
+    && dnf -y distro-sync \
+    '
+
+RUN bash -exc ': \
+    \
+    && : "install nginx & php" \
+    && dnf -y module install nginx \
+    && dnf -y module install php:$PHP_VER \
+    '
+
+ADD yum.txt ./
+RUN \
+    --mount=type=cache,id=cops${BASE}dnf,target=/var/cache/dnf \
+    --mount=type=cache,id=cops${BASE}yum,target=/var/cache/yum \
     bash -c 'set -exo pipefail \
-    && if [ "x${UBUNTU_APT_MIRROR}" != "x" ];then echo "Using UBUNTU_APT_MIRROR: ${UBUNTU_APT_MIRROR}";         sed -i -re "s!(deb(-src)?\s+)http.?[:]//(archives?.ubuntu.com/ubuntu/)!\1${UBUNTU_APT_MIRROR}!g" $(find /etc/apt/sources.list* -type f);fi \
-    && if [ "x${CANONICAL_APT_MIRROR}" != "x" ];then echo "Using CANONICAL_APT_MIRROR: ${CANONICAL_APT_MIRROR}";sed -i -re "s!(deb(-src)?\s+)http.?[:]//(archives?.canonical.com/ubuntu/)!\1${CANONICAL_APT_MIRROR}!g" $(find /etc/apt/sources.list* -type f);fi \
-    && : "$(date): install packages" \
-    && rm -f /etc/apt/apt.conf.d/docker-clean || true;echo "Binary::apt::APT::Keep-Downloaded-Packages \"true\";" > /etc/apt/apt.conf.d/keep-cache \
-    && osver=$(. /etc/os-release && echo $VERSION_CODENAME ) \
-    && : use postgresql.org repos \
-    && if (grep -q -E ^postgresql apt.txt);then \
-         apt update -qq && apt install -y curl ca-certificates gnupg; \
-         ( curl https://www.postgresql.org/media/keys/ACCC4CF8.asc|gpg --dearmor|tee /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg >/dev/null||true; ); \
-         ( echo "deb http://apt.postgresql.org/pub/repos/apt ${osver}-pgdg main" > /etc/apt/sources.list.d/pgdg.list); \
-    fi \
+    \
     && : "install packages" \
-    && apt-get update  -qq \
-    && sed -i -re "s/(php-?)[0-9]\.[0-9]+/\1$PHP_VER/g" apt.txt \
-    && apt-get install -qq -y --no-install-recommends $(sed -re "/$DEV_DEPENDENCIES_PATTERN/,$ d" apt.txt|grep -vE "^\s*#"|tr "\n" " " ) \
-    && : "fix for https://github.com/oerdnj/deb.sury.org/issues/1682" \
-    && apt-get -y dist-upgrade \
+    && sed -i -re "s/(php-?)[0-9]\.[0-9]+/\1$PHP_VER/g" yum.txt \
+    && yum -y update \
+    && yum install -y yum-utils \
+    && yum -y update \
+    && yum -y install $(sed -re "/$DEV_DEPENDENCIES_PATTERN/,$ d" yum.txt|grep -vE "^\s*#"|tr "\n" " " ) \
+    && yum clean all \
     && : "$(date) end" \
     '
 
@@ -196,9 +200,10 @@ RUN \
     --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists \
     bash -c 'set -exo pipefail \
     && : "$(date)install dev packages"\
-    && apt-get update  -qq \
-    && apt-get install -qq -y --no-install-recommends $(cat apt.txt|grep -vE "^\s*#"|tr "\n" " " ) \
-    && : "$(date) end" \
+    && yum -y update \
+    && yum -y install $(cat yum.txt|grep -vE "^\s*#"|tr "\n" " " ) \
+    && yum clean all \
+    && : "$(date) end"  \
     '
 
 # Handle images refresh (rebuild from BASE_IMAGE where BASE_IMAGE is an older version of this image)
@@ -338,7 +343,9 @@ ENV \
 RUN --mount=type=bind,from=final,target=/s \
     for i in /init.sh /home/ $BASE_DIR/ \
              /cops_helpers/ /etc/supervisor.d/ /etc/rsyslog.d/ /etc/rsyslog.conf /etc/rsyslog.conf.frep /etc/cron.d/ /etc/logrotate.d/ \
-    ;do if [ -e /s${i} ] || [ -h /s${i} ];then rsync -aAH --numeric-ids /s${i} ${i};fi;done
+    ;do if [ -e /s${i} ] || [ -h /s${i} ];then rsync -aAH --numeric-ids /s${i} ${i};fi;done \
+    && : "Fix crond & pam error in RedHat --FAILED to open PAM security session (Cannot make/remove an entry for the specified session)--" \
+    && : '########### sed -i "/session    required   pam_loginuid.so/c\#session    required   pam_loginuid.so" /etc/pam.d/crond '
 WORKDIR $BASE_DIR/app
 ADD --chown=${APP_TYPE}:${APP_TYPE} .git                         $BASE_DIR/.git
 # image will drop privileges itself using gosu at the end of the entrypoint

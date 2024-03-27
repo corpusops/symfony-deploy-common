@@ -1,4 +1,8 @@
 ---
+- package:
+    pkg: [rsync]
+    state: present
+  tags: [install_rsync]
 - file:
     state: directory
     mode: "2751"
@@ -9,30 +13,43 @@
   - "{{cops_symfony_dir}}/local/backup"
   - "{{cops_symfony_dir}}/local/backup/data"
   - "{{cops_symfony_dir}}/local/backup/setup"
+  tags: [symfony_layout_dirs]
+- when: cops_symfony_rsync_password and cops_symfony_rsync_escalate
+  delegate_to: "localhost"
+  copy:
+    dest: "{{cops_symfony_rsync_rsh_wrapper_path}}"
+    content: "{{cops_symfony_rsync_rsh_wrapper}}"
+    force: true
+    mode: "0750"
 - name: Synchronise files inside the environment (deleguation)
   delegate_to: "localhost"
+  environment: "{{cops_symfony_rsync_env}}"
   synchronize:
-    compress: false
-    ssh_args: "{{cops_symfony_sshargs}}"
-    src: "{{cops_symfony_code_dir}}"
+    compress: "{{cops_symfony_rsync_compress}}"
+    src: "{{cops_symfony_code_dir}}/"
     dest: "{{cops_symfony_dir}}/"
-    rsync_opts: "{{cops_symfony_code_rsync_opts}}"
-    set_remote_user: "no"
+    rsync_path: "{{cops_symfony_rsync_path}}"
+    rsync_opts: "{{cops_symfony_rsync_code_opts}}"
+    set_remote_user: "{{cops_symfony_rsync_set_remote_user}}"
     #update_opts: '--recursive'
+  tags: [symfony_sync, symfony_sync_code]
 - template:
     src: "docker.env"
     dest: "{{cops_symfony_dir}}/docker.env"
     mode: "0640"
+    force: true
     trim_blocks: false
+  tags: [symfony_conf]
 - blockinfile:
     create: true
     path: "{{cops_symfony_dir}}/.env"
     content: |-
       {{cops_symfony_dotenv}}
-      {{cops_symfony_dotenv_extra}}
     marker: "# ANSIBLE MANAGED BLOCK :: deploy commit :: {mark}"
+  tags: [symfony_conf]
 - include_tasks: docker_login.yml
   loop: "{{cops_symfony_registries}}"
+  tags: [symfony_docker, symfony_docker_login]
 - shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
@@ -40,6 +57,7 @@
   when:
   - "cops_symfony_build|copsf_asbool"
   - "cops_symfony_build_args|copsf_asbool"
+  tags: [symfony_docker, symfony_docker_build]
 # ensure all images are (re) pulled
 - shell: |
     set -ex
@@ -49,32 +67,60 @@
   delay: 10
   when:
   - "cops_symfony_pull|copsf_asbool"
+  tags: [symfony_docker, symfony_docker_pull]
+# systemd service definition and (de)activation
 - include_role: {name: corpusops.roles/docker_compose_service}
   vars:
     _docker_compose_service:
       working_directory: "{{cops_symfony_dir}}"
       files: "{{cops_symfony_compose_files}}"
-      project: "{{cops_symfony_composename}}"
+      project: "{{cops_symfony_servicename}}"
       restart: "on-failure"
-  tags: [service]
+  tags: [symfony_service_register, symfony_service, service]
 # start maintenance mode
 - tags: [symfony_service, symfony_maintenance, symfony_disable_maintenance]
   shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
-    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "touch {{cops_symfony_maintenance_flags_dir}}/MAINTENANCE"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "if [ ! -e {{cops_symfony_maintenance_flags_dir}} ];then mkdir -p {{cops_symfony_maintenance_flags_dir}};fi;touch {{cops_symfony_maintenance_flags_dir}}/MAINTENANCE"
 # suspend cron tasks
 - tags: [symfony_service, symfony_cron, symfony_disable_cron]
   shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
-    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "touch {{cops_symfony_maintenance_flags_dir}}/SUSPEND_CRONS"
+    {{cops_symfony_dc}} run --rm -T -u root --entrypoint bash symfony -ec "if [ ! -e {{cops_symfony_maintenance_flags_dir}} ];then mkdir -p {{cops_symfony_maintenance_flags_dir}};fi;touch {{cops_symfony_maintenance_flags_dir}}/SUSPEND_CRONS"
 # ensure manually handled services are booted
 # to handle sidekar volumes refresh accuratly
+- tags: [symfony_service, symfony_restart_service, symfony_do_restart_service]
+  shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {% for i in cops_symfony_started_services.split() %}
+    ret=
+    for i in $(seq 30);do
+      {{cops_symfony_dc}} up -d --no-deps --remove-orphans {{i}}
+      ret=$?
+      if [ "x$ret" = "x0" ];then break;fi
+      sleep 1
+    done
+    if [ "x$ret" != "x0" ];then echo "{{i}}: failed start";exit 1;fi
+    {% endfor %}
+- shell: |
+    set -ex
+    cd "{{cops_symfony_dir}}"
+    {% for i in cops_symfony_started_services.split()|reverse %}
+    {{cops_symfony_dc}} ps --services --filter status=running | grep -E -q "^{{i}}$"
+    {% endfor %}
+  retries: 60
+  delay: 1
+  register: started_docker_services
+  until: "started_docker_services.rc == 0"
 - shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
     {% for i in cops_symfony_restarted_services.split() %}
+    has_service() { {{cops_symfony_dc}} config |grep -qE "^  +${1}:"; }
+    if ( has_service {{i}} );then
     ret=
     for i in $(seq 30);do
       if ( {{cops_symfony_dc}} ps --services \
@@ -88,20 +134,27 @@
       sleep 1
     done
     if [ "x$ret" != "x0" ];then echo "{{i}}: failed restart";exit 1;fi
+    fi
     {% endfor %}
+  tags: [symfony_service_restart, symfony_service, service]
 - shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
+    has_service() { {{cops_symfony_dc}} config |grep -qE "^  +${1}:"; }
     {% for i in cops_symfony_restarted_services.split()|reverse %}
+    if ( has_service {{i}} );then
     {{cops_symfony_dc}} ps --services --filter status=running | grep -E -q "^{{i}}$"
+    fi
     {% endfor %}
   retries: 60
   delay: 1
   register: restarted_docker_services
   until: "restarted_docker_services.rc == 0"
+  tags: [symfony_service_restart, symfony_service, service]
 ## as we use a named volume for nginx sidekar container, also
 ## purge the obsolete volumes leftover in-between
-- shell: |
+- tags: [symfony_service, symfony_static_volumes_purge]
+  shell: |
     set -ex
     cd "{{cops_symfony_dir}}"
     if [[ -n "{{cops_symfony_docker_tag}}" ]];then

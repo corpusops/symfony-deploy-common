@@ -1,20 +1,21 @@
 ---
 cops_symfony_name: symfonyinstance
 cops_symfony_project_module_name: "{{cops_symfony_name}}"
+#
+cops_symfony_default_deploy_env: "dev"
+cops_symfony_default_docker_tag: "latest"
+cops_symfony_default_gitref: "master"
 cops_symfony_branch_envs: {}
-cops_symfony_default_deploy_env: prod
 cops_symfony_deploy_env: "{{ (
   cops_symfony_gitref in [cops_symfony_default_gitref, cops_symfony_default_docker_tag]
     and cops_symfony_default_deploy_env
-    or  cops_symfony_branch_envs.get(cops_symfony_gitref, cops_symfony_default_deploy_env))}}"
+    or  cops_symfony_branch_envs.get(cops_symfony_gitref, cops_symfony_gitref))}}"
 cops_symfony_app_env: "{{cops_symfony_deploy_env}}"
 cops_symfony_docker_tag: "{{cops_symfony_gitref.replace('master', cops_symfony_default_docker_tag)}}"
 cops_symfony_project_env: "DEV"
 cops_symfony_docker_image: "{{cops_symfony_name}}"
-cops_symfony_default_docker_tag: "latest"
 cops_symfony_tld_domain: example.com
 cops_symfony_mail_domain: "{{ cops_symfony_tld_domain }}"
-cops_symfony_default_gitref: "master"
 cops_symfony_gitref: "{{cops_symfony_default_gitref}}"
 cops_symfony_dir_default: "/srv/docker/{{cops_symfony_name}}"
 cops_symfony_dir: "{{cops_symfony_dir_default}}"
@@ -26,6 +27,7 @@ cops_symfony_devmode: "{{ansible_connection|default('ssh') in ['local']}}"
 cops_symfony_composename: "{{forced_cops_symfony_composename|default(cops_symfony_devmode and
   (teleport_wd|copsf_basename) or
   cops_symfony_name)}}"
+cops_symfony_servicename: "{{cops_symfony_composename}}"
 cops_symfony_backuped_dbs_keep_lasts: "1"
 cops_symfony_backuped_dbs: all
 cops_symfony_db_host: "db"
@@ -36,9 +38,10 @@ cops_symfony_db_name: "{{cops_symfony_name}}"
 cops_symfony_build_args: "--no-cache symfony cron"
 cops_symfony_nginx_avoid_ssl_rewrite: ""
 # backup could be remove in a-while when we have redeployed it everywhere
-cops_symfony_started_services_default: "db backup"
+cops_symfony_started_services_default: "log"
+# do not remove setup-* services for retrocompat !
+cops_symfony_restarted_services_default: "log db redis memcached setup-mysql setup-postgres setup-db symfony nginx backup cron"
 cops_symfony_started_services: "{{cops_symfony_started_services_default}}"
-cops_symfony_restarted_services_default: "symfony cron"
 cops_symfony_restarted_services: "{{cops_symfony_restarted_services_default}}"
 cops_symfony_purge_volumes: []
 cops_symfony_sshargs: >-
@@ -80,7 +83,8 @@ cops_symfony_email_host_password: ''
 cops_symfony_email_host_port: 1025
 cops_symfony_email_use_tls: 'no'
 cops_symfony_hosts_whitelist: "{{(
-    [cops_symfony_hostname, '0.0.0.0', '.{0}'.format(cops_symfony_hostname)]+
+    [cops_symfony_hostname, '0.0.0.0']+
+    ['.{0}'.format(cops_symfony_hostname)]+
     cops_symfony_alternate_hostnames
   )|join('-|_')}}"
 cops_symfony_sentry_tags: ["env:{{cops_symfony_deploy_env}}"]
@@ -98,7 +102,6 @@ cops_symfony_docker_env_freeform: |-
   {{ cops_symfony_docker_env_extra}}
 cops_symfony_docker_env_defaults: ""
 # free form for params inside dockerenv
-cops_symfony_maintenance_flags_dir: /code/app/private
 cops_symfony_http_listen: "0.0.0.0"
 cops_symfony_http_port: "80"
 cops_symfony_https_port: "443"
@@ -115,13 +118,19 @@ cops_symfony_dotenv_defaults: |-
   SYMFONY_API_PORT={{cops_symfony_api_port}}
   PROJECT_PACKAGE={{ cops_symfony_name }}
   PROJECT_DIR=/code/app
+  APP_TYPE=symfony
+  SYMFONY_NAME={{ cops_symfony_name }}
   NO_MIGRATE={{not cops_symfony_migrate and '1' or '' }}
   COMPOSE_PROJECT_NAME={{cops_symfony_composename}}
   CONTROL_COMPOSE_FILES={{cops_symfony_compose_files|join(' ')}}
-  COMPOSE_FILES={{cops_symfony_compose_files|join(':')}}
+  COMPOSE_FILE={{cops_symfony_compose_files|join(':')}}
   CI_COMMIT_SHA={{cops_symfony_gitref}}
   SYMFONY_IMAGE={{ cops_symfony_docker_image }}
   SYMFONY_IMAGE_VERSION={{cops_symfony_docker_tag}}
+  SYMFONY_ENV_NAME={{ cops_symfony_deploy_env }}
+  APP_ENV={{ cops_symfony_app_env }}
+  APP_SECRET={{ cops_symfony_secret_key }}
+  # docker variables
   # This need to be changed in production
   SECRET_KEY={{ cops_symfony_secret_key }}
   # db
@@ -142,11 +151,12 @@ cops_symfony_dotenv_defaults: |-
   DATABASE_URI={{cops_symfony_db_uri}}
   PSQL_URI={{cops_symfony_psql_uri}}
   DATABASE_URL={{cops_symfony_db_uri}}
-  SYMFONY_NAME={{ cops_symfony_name }}
   COOKIE_DOMAIN={{ cops_symfony_hostname }}
   ABSOLUTE_URL_SCHEME=https
   ABSOLUTE_URL_DOMAIN={{ cops_symfony_hostname }}
   ABSOLUTE_URL_PORT=
+  NGINX_SERVERNAME={{ cops_symfony_hostname }}
+  NGINX_SERVER_ALIASES={{ cops_symfony_alternate_hostnames | join(' ')}}
   PHP_MEMORY_LIMIT={{ cops_symfony_php_memory_limit }}
   PHP_MAX_WORKERS={{ cops_symfony_php_max_workers }}
   PHP_MAX_SPARE_WORKERS={{ cops_symfony_php_max_spare_workers }}
@@ -171,10 +181,10 @@ cops_symfony_dotenv_defaults: |-
   {% endif %}
   MAILCATCHER_USER={{cops_symfony_mailcatcher_user}}
   MAILCATCHER_PASSWORD={{cops_symfony_mailcatcher_password}}
+  # db
   DBS_DBNAMES={{cops_symfony_backuped_dbs}}
   DBS_KEEP_LASTS={{cops_symfony_backuped_dbs_keep_lasts}}
   NO_FORCE_SSL={{ cops_symfony_nginx_avoid_ssl_rewrite }}
-  APP_TYPE=symfony
   SYMFONY_NAME={{ cops_symfony_name }}
   COMPOSE_PROJECT_NAME={{cops_symfony_composename}}
   CONTROL_COMPOSE_FILES={{cops_symfony_compose_files|join(' ')}}
@@ -182,33 +192,58 @@ cops_symfony_dotenv_defaults: |-
   CI_COMMIT_SHA={{cops_symfony_gitref}}
   SYMFONY_IMAGE={{ cops_symfony_docker_image }}
   SYMFONY_IMAGE_VERSION={{cops_symfony_docker_tag}}
-  APP_ENV={{ cops_symfony_app_env }}
-  APP_SECRET={{ cops_symfony_secret_key }}
 cops_symfony_dotenv: "{{cops_symfony_dotenv_defaults}}"
 cops_symfony_dotenv_extra: ""
+cops_symfony_dotenv: |
+  {{cops_symfony_dotenv_defaults}}
+  {{cops_symfony_dotenv_extra}}
 # free form for params inside dockerenv
 cops_symfony_docker_env_extra: ""
 # Normally playbook is in ./.ansible/playbooks
 cops_symfony_code_dir: "{{playbook_dir}}/../.."
-cops_symfony_code_rsync_path: "{%if cops_symfony_sync_ssh_user_internal and (cops_symfony_sync_ssh_user_internal != 'root')%}sudo {% endif%}rsync"
-cops_symfony_code_rsync_excludes_default: [
+cops_symfony_has_bastion: "{{(ansible_bastion|default(''))|copsf_asbool}}"
+cops_symfony_rsync_password: "{{ansible_become_pass|default('')}}"
+cops_symfony_rsync_user: "{{ansible_user|default('root')}}"
+cops_symfony_rsync_escalate: "{{cops_symfony_rsync_user != 'root'}}"
+cops_symfony_rsync_path: "{% if cops_symfony_rsync_escalate %}sudo {%if cops_symfony_rsync_password%}-S {%endif%}{%endif %}rsync"
+cops_symfony_rsync_code_path: "{%if cops_symfony_sync_ssh_user_internal and (cops_symfony_sync_ssh_user_internal != 'root')%}sudo {% endif%}rsync"
+cops_symfony_rsync_env: {PASSWORD: "{{cops_symfony_rsync_password}}"}
+cops_symfony_rsync_rsh_wrapper_path: "{{playbook_dir|copsf_dirname}}/ssh_sudo"
+cops_symfony_rsync_rsh_wrapper: |-
+  #!/bin/bash
+  # Wrapper to escalate remote shell as root for rsync syncronisation
+  { if [ "x${PASSWORD-}" != "x" ];then echo "${PASSWORD-}";fi;cat -; }| ssh "$@" &
+cops_symfony_rsync_rsh: "{% if cops_symfony_rsync_password and cops_symfony_rsync_escalate%}{{cops_symfony_rsync_rsh_wrapper_path}}{%else%}ssh{%endif%}"
+cops_symfony_rsync_set_remote_user: "{{ cops_symfony_has_bastion and 'yes' or 'no'}}"
+cops_symfony_rsync_compress: false
+# retro compat
+cops_symfony_code_rsync_path: "{{cops_symfony_rsync_code_path}}"
+cops_symfony_code_rsync_opts: "{{cops_symfony_rsync_code_opts}}"
+#
+cops_symfony_rsync_opts: |-
+  {#- put $ssh_args here as when we use a custom rsh for interactive
+  sudopass, they would get ignored by the syncronise module #}
+  {%- set o = ['--rsh={0} {1}'.format(cops_symfony_rsync_rsh, cops_symfony_sshargs)|quote] %}
+  {{-o|to_json|string}}
+cops_symfony_rsync_code_opts:  "{{cops_symfony_rsync_opts+cops_symfony_rsync_code_default_opts}}"
+cops_symfony_rsync_theme_opts: "{{cops_symfony_rsync_opts+cops_symfony_rsync_theme_default_opts}}"
+cops_symfony_rsync_theme_default_opts: ["-azv", "--delete"]
+cops_symfony_rsync_code_default_opts: [
+    "-azv",
     # include deploy projects base code
     "--include", "local/*-deploy",
-    "--exclude", ".ansible",
     "--exclude", "local/*",
+    #
+    "--exclude", ".ansible",
     "--exclude", ".tox",
     "--exclude", ".env",
     "--exclude", ".vscode",
-    "--exclude", "docker.env"
-]
-cops_symfony_code_rsync_excludes: "{{cops_symfony_code_rsync_excludes_default}}"
-cops_symfony_code_rsync_opts_custom: []
-cops_symfony_code_rsync_opts_default: ["-azv"]
-cops_symfony_code_rsync_opts: "{{cops_symfony_code_rsync_opts_default + cops_symfony_code_rsync_opts_custom + cops_symfony_code_rsync_excludes }}"
+    "--exclude", "docker.env"]
 cops_symfony_backup_postgresql: "{{'5432' == '{0}'.format(cops_symfony_db_port)}}"
 cops_symfony_backup_paths_to_backup:
 - "{{cops_symfony_dir}}"
 cops_symfony_backup_docker_volumes: [publiccontrib, private, webroot]
+cops_symfony_backup_docker_volumes_none: []
 cops_symfony_backup_docker_volumes_: |-
   {% set res = [] %}
   {% for i in cops_symfony_backup_docker_volumes %}
@@ -262,11 +297,12 @@ teleport_restart_services: "{{teleport_services}}"
 # teleport_mode: default|makinastates
 # teleport_origin: <origin from where we restore>
 # teleport_destination: <destination to restore>
+teleport_force_wd: "{{cops_symfony_dir}}"
 teleport_wd: "{{(
   cops_symfony_devmode and
   (playbook_dir|copsf_dirname|copsf_dirname) or
-  cops_symfony_dir)}}"
-teleport_orig_wd: "{{cops_symfony_dir}}"
+  teleport_force_wd)}}"
+teleport_orig_wd: "{{teleport_force_orig_wd|default(teleport_force_wd)}}"
 teleport_orig_composename: "{{cops_symfony_name}}"
 teleport_data_dir: "{{teleport_wd}}/local/nobackup/teleport"
 teleport_orig_data_dir: "{{teleport_orig_wd}}/local/nobackup/teleport"
@@ -281,32 +317,39 @@ teleport_ms_privatedocs_dir: "/srv/projects/{{teleport_ms_project}}/data/private
 teleport_db_container: db
 teleport_docker_publiccontrib_dir: "/var/lib/docker/volumes/{{teleport_orig_composename}}_publiccontrib/_data"
 teleport_docker_private_dir: "/var/lib/docker/volumes/{{teleport_orig_composename}}_private/_data"
-teleport_docker_privatedocs_dir: "{{teleport_orig_wd}}/app/var/private/docs"
-teleport_container_publiccontrib_dir: /code/app/var/public
-teleport_container_private_dir: /code/app/var/private
-teleport_container_privatedocs_dir: /code/app/var/private/docs
+teleport_docker_privatedocs_dir: "{{teleport_orig_wd}}/app/docs"
+teleport_docker_privatedocsold_dir: "{{teleport_orig_wd}}/app/private/docs"
+teleport_container_publiccontrib_dir: /code/app/public
+teleport_container_private_dir: /code/app/private
+teleport_container_privatedocs_dir: /code/app/docs
+teleport_container_privatedocsold_dir: /code/app/private/docs
 teleport_app_container: symfony
 teleport_paths_makinastates:
   origin_dump: "{{teleport_paths_ms_origin_dump}}"
   origin_publiccontrib: "{{teleport_ms_publiccontrib_dir}}"
   origin_private: "{{teleport_ms_private_dir}}"
   origin_privatedocs: "{{teleport_ms_privatedocs_dir}}"
+  origin_privatedocsold: "{{teleport_ms_privatedocs_dir}}"
 teleport_paths_default:
   origin_dump: "{{teleport_paths_origin_dump}}"
   origin_publiccontrib: "{{teleport_docker_publiccontrib_dir}}"
   origin_private: "{{teleport_docker_private_dir}}"
   origin_privatedocs: "{{teleport_docker_privatedocs_dir}}"
+  origin_privatedocsold: "{{teleport_docker_privatedocsold_dir}}"
 teleport_paths_common:
   dest_dump: "{{lookup('vars', 'teleport_paths_dest_dump_'+teleport_db_mode)}}"
   dest_publiccontrib: "{{teleport_container_publiccontrib_dir}}"
   dest_private: "{{teleport_container_private_dir}}"
   dest_privatedocs: "{{teleport_container_privatedocs_dir}}"
+  dest_privatedocsold: "{{teleport_container_privatedocsold_dir}}"
   dump_file: dump.gz
 teleport_paths: "{{teleport_paths_common|combine(lookup('vars', 'teleport_paths_'+_teleport_mode))}}"
 teleport_paths_origin_dump_file: "{{teleport_paths.origin_dump}}/{{teleport_paths.dump_file}}"
 teleport_paths_dest_dump_file: "{{teleport_paths.dest_dump}}/{{teleport_paths.dump_file}}"
-teleport_rsync_args: "-azv --delete --delete-after"
-teleport_rsync_extra_args: "{% if teleport_origin_vars.get('ansible_become', '') and ((become_user|default((ansible_user|default('')))) not in ['root'] )%}--rsync-path='sudo rsync'{%endif%}"
+teleport_rsync_args: "-az{{teleport_verbose}} --delete --delete-after"
+teleport_rsync_extra_args: "{{teleport_rsync_origin_extra_args}}"
+teleport_rsync_origin_extra_args: "{% if teleport_origin_vars.get('ansible_become', '')           and (teleport_origin_vars.get('ansible_user', '')      not in [None, '', 'root'])%}--rsync-path='sudo rsync'{%endif%}"
+teleport_rsync_destination_extra_args: "{% if teleport_destination_vars.get('ansible_become', '') and (teleport_destination_vars.get('ansible_user', '') not in [None, '', 'root'])%}--rsync-path='sudo rsync'{%endif%}"
 teleport_destination_ansible_host: "{{groups[teleport_destination][0]}}"
 teleport_origin_ansible_host: "{{groups[teleport_origin][0]}}"
 teleport_destination_host: "{{hostvars[teleport_destination_ansible_host]['ansible_host'] or teleport_destination_ansible_host}}"
@@ -321,7 +364,12 @@ teleport_sync_db_files_default:
     container: "{{teleport_db_container}}"
     container_path: "{{teleport_paths.dest_dump}}/"
     # only_if_exists: true
+teleport_private_extra_rsync_extra_args: "--exclude docs"
 teleport_sync_files_default:
+  privatedocsold:
+    origin_path: "{{teleport_paths.origin_privatedocsold}}/"
+    container: "{{teleport_app_container}}"
+    container_path: "{{teleport_paths.dest_privatedocsold}}/"
   privatedocs:
     origin_path: "{{teleport_paths.origin_privatedocs}}/"
     container: "{{teleport_app_container}}"
@@ -330,7 +378,7 @@ teleport_sync_files_default:
     origin_path: "{{teleport_paths.origin_private}}/"
     container: "{{teleport_app_container}}"
     container_path: "{{teleport_paths.dest_private}}/"
-    rsync_extra_args: "--exclude docs"
+    rsync_extra_args: "{{teleport_private_extra_rsync_extra_args}}"
   publiccontrib:
     origin_path: "{{teleport_paths.origin_publiccontrib}}/"
     container: "{{teleport_app_container}}"
@@ -411,7 +459,7 @@ teleport_ssh_origin_args: "{{hostvars[groups[teleport_origin][0]].ansible_ssh_co
 teleport_ssh_destination_args: "{{hostvars[groups[teleport_destination][0]].ansible_ssh_common_args | default('')}}"
 teleport_origin_sshargs_default: >-
   {% set h = groups[teleport_origin][0] %}
-  {% set k = hostvars[h].get('ansible_bastion', '') != '' and teleport_env_ssh_deploy_key or teleport_ssh_origin_key_path %}
+  {% set k = teleport_destination not in ['controller'] and teleport_env_ssh_deploy_key or teleport_ssh_origin_key_path %}
   {% if k%}-o IdentityFile={{k}} -o IdentitiesOnly=yes{%endif%}
   -o StrictHostKeyChecking=no
   {% if (
@@ -426,7 +474,7 @@ teleport_origin_sshargs_default: >-
   {% if cops_symfony_sync_ssh_user_internal %}-l {{user}}{% endif %}
 teleport_destination_sshargs_default: >-
   {% set h = groups[teleport_destination][0] %}
-  {% set k = hostvars[h].get('ansible_bastion', '') != '' and teleport_env_ssh_deploy_key or teleport_ssh_origin_key_path %}
+  {% set k = teleport_origin not in ['controller'] and teleport_env_ssh_deploy_key or teleport_ssh_destination_key_path %}
   -o StrictHostKeyChecking=no
   {% if k%}-o IdentityFile={{k}} -o IdentitiesOnly=yes{%endif%}
   {% if (
@@ -443,8 +491,10 @@ teleport_destination_sshargs_default: >-
   {% set user = cops_symfony_sync_dest_ssh_user|default(cops_symfony_sync_ssh_user) or (ansible_user|default('')) or '' %}
   {% if user %}-l {{user}}{% endif %}
   {% endif %}
+teleport_symfony_fakeinitial: true
 teleport_post_reset_script_default: |-
   set -ex
+  {% if teleport_symfony_fakeinitial %}
   cd {{teleport_wd}};
   su="gosu symfony";
   cat|COMPOSE_INTERACTIVE_NO_CLI= {{teleport_dc}} \
@@ -457,6 +507,7 @@ teleport_post_reset_script_default: |-
   bin/drush cr
   #
   EOF
+  {%endif%}
   export COMPOSE_INTERACTIVE_NO_CLI=1
 teleport_pg_restore_clean: true
 teleport_pg_restore_flags: >-
@@ -509,7 +560,7 @@ teleport_post_force_restart_services: "setup-postgres setup-mysql redis memcache
 teleport_restart_dependant_services: |-
   set -e
   cd "{{teleport_wd}}"
-  has_service() { {{teleport_dc}} config |grep -qE "^   +${1}:"; }
+  has_service() { {{teleport_dc}} config |grep -qE "^  +${1}:"; }
   log() { echo "$@" >&2; }
   restarted_services="{{teleport_post_restart_services}}"
   frestarted_services="{{teleport_post_force_restart_services}}"
@@ -580,3 +631,5 @@ teleport_verbose: "{{teleport_is_verbose and 'v' or ''}}"
 teleport_vverbose: "{{teleport_is_verbose  and '-v' or ''}}"
 teleport_xverbose: "{{teleport_is_verbose and 'x' or ''}}"
 teleport_vxverbose: "{{teleport_is_verbose  and '-x' or ''}}"
+cops_symfony_maintenance_flags_dir: /code/app/private
+
