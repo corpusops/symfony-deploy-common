@@ -1,5 +1,5 @@
 ; syntaxe supervisor-go pour docker
-{{ $command := .Env.SYMFONY_DISPATCH_COMMAND | default "{{.Env.SRC_DIR}}/bin/console dispatcher:run" }}
+{{ $command := .Env.SYMFONY_DISPATCH_COMMAND | default "{{.Env.BASE_DIR}}/app/bin/console dispatcher:run" }}
 [program:messenger]
 ; Command to start app
 command = {{ $command }}
@@ -19,5 +19,5 @@ stdout_logfile_maxbytes = 0
 stderr_logfile_maxbytes = 0
 stdout_logfile_backups = 0
 stderr_logfile_backups = 0
-; Set UTF-8 as default encoding
-environment=LANG=fr_FR.UTF-8,LC_ALL=fr_FR.UTF-8,PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{.Env.SRC_DIR}}/bin
+; Set UTF-8 as default encoding                                                                                                     
+environment=LANG=fr_FR.UTF-8,LC_ALL=fr_FR.UTF-8,PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:{{.Env.BASE_DIR}}/app/bin
