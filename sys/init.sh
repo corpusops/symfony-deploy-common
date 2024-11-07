@@ -132,7 +132,7 @@ export COMPOSER_NO_INTERACTION=${COMPOSER_NO_INTERACTION-1}
 
 
 # forward console integration
-export TERM="${TERM-}" COLUMNS="${COLUMNS-}" LINES="${LINES-}"
+export TERM="${TERM-}" COLUMNS="${COLUMNS:-80}" LINES="${LINES:-40}"
 
 debuglog() { if [[ -n "$DEBUG" ]];then echo "$@" >&2;fi }
 log() { echo "$@" >&2; }
