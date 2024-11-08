@@ -1,4 +1,7 @@
+; syntaxe supervisor-go pour docker
 [program:phpfpm]
+{{ $lang := .Env.APP_LANG_LOCALE | default "fr_FR.UTF-8" }}
+{{ $appsyspath := .Env.APP_SYS_PATH | default ( print "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:" .Env.BASE_DIR "/app/bin" ) }}
 command = php-fpm -F -R
 autostart = true
 restartpause = 5
@@ -13,3 +16,5 @@ stdout_logfile_maxbytes = 0
 stderr_logfile_maxbytes = 0
 stdout_logfile_backups = 0
 stderr_logfile_backups = 0
+; Set UTF-8 as default encoding & PATH
+environment=LANG={{$lang}},LC_ALL={{$lang}},PATH={{$appsyspath}}
