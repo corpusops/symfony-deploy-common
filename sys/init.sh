@@ -85,8 +85,8 @@ export RSYSLOG_LOGFORMAT="${RSYSLOG_LOGFORMAT:-'%timegenerated% %syslogtag% %msg
 export RSYSLOG_OUT_LOGFILE="${RSYSLOG_OUT_LOGFILE:-n}"
 export RSYSLOG_REPEATED_MSG_REDUCTION="${RSYSLOG_REPEATED_MSG_REDUCTION:-off}"
 
-FINDPERMS_PERMS_DIRS_CANDIDATES="${FINDPERMS_PERMS_DIRS_CANDIDATES:-"public private"}"
-FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"public private"}"
+FINDPERMS_PERMS_DIRS_CANDIDATES="${FINDPERMS_PERMS_DIRS_CANDIDATES:-""}"
+FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"app/public app/private"}"
 SKIP_RENDERED_CONFIGS="${SKIP_RENDERED_CONFIGS:-varnish}"
 export HISTFILE="${LOCAL_DIR}/.bash_history"
 export PSQL_HISTORY="${LOCAL_DIR}/.psql_history"
@@ -105,7 +105,7 @@ export APP_ENV=${APP_ENV:-"prod"}
 export APP_SECRET=${APP_SECRET:-42424242424242424242424242}
 # directories created and set on user ownership at startup
 export EXTRA_USER_DIRS="${EXTRA_USER_DIRS-}"
-export USER_DIRS="${USER_DIRS:-". app/public app/private $FPM_LOGS_DIR $CRON_LOGS_DIR ${EXTRA_USER_DIRS}"}"
+export USER_DIRS="${USER_DIRS:-". app/public app/private app/var app/var/cache $FPM_LOGS_DIR $CRON_LOGS_DIR ${EXTRA_USER_DIRS}"}"
 export SHELL_USER="${SHELL_USER:-${APP_USER}}" SHELL_EXECUTABLE="${SHELL_EXECUTABLE:-/bin/bash}"
 
 # Symfony variables
@@ -356,13 +356,17 @@ fixperms() {
         fi
     done
     for i in $USER_DIRS;do if [ -e "$i" ];then chown $APP_USER:$PHP_GROUP "$i";fi;done
-    while read f;do chmod 0755 "$f";done < \
-        <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type d -not \( -perm 0755 2>/dev/null \) |sort)
-    while read f;do chmod 0644 "$f";done < \
-        <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type f -not \( -perm 0644 2>/dev/null \) |sort)
-    while read f;do chown $APP_USER:$PHP_GROUP "$f";done < \
-        <(find $FINDPERMS_OWNERSHIP_DIRS_CANDIDATES \
-          \( -type d -or -type f \) -not \( -user $APP_USER -or -group $PHP_GROUP \)  2>/dev/null|sort)
+    if [[ -n "$FINDPERMS_PERMS_DIRS_CANDIDATES" ]];then
+        while read f;do chmod 0755 "$f";done < \
+            <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type d -not \( -perm 0755 2>/dev/null \) |sort)
+        while read f;do chmod 0644 "$f";done < \
+            <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type f -not \( -perm 0644 2>/dev/null \) |sort)
+    fi
+    if [[ -n "$FINDPERMS_OWNERSHIP_DIRS_CANDIDATES" ]];then
+        while read f;do chown $APP_USER:$PHP_GROUP "$f";done < \
+            <(find $FINDPERMS_OWNERSHIP_DIRS_CANDIDATES \
+              \( -type d -or -type f \) -not \( -user $APP_USER -or -group $PHP_GROUP \)  2>/dev/null|sort)
+    fi
 }
 
 #  usage: print this help
